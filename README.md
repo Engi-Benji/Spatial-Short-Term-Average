@@ -7,6 +7,9 @@ within spatially dense data.  This repo contains the code and data to reproduce 
 DAS data to detect nanoseismicity using the SSTA and other potential methods such as the STA/LTA, kNN and Amplitude 
 Thresholding. Any questions or problems using the code contact me at: kcx19zeu@uea.ac.uk.
 
+Due to the large file size the example window files are not available as part of the repo but are available upon 
+request.
+
 Packages Needed:
 
     - matplotlib
@@ -33,9 +36,7 @@ Data:
         - Cromer_Earthquake_UTC_20250126_043253.140.tdms
         - Cromer_Earthquake_UTC_20250126_043323.140.tdms
     -Example Windows
-        - February_Window_UTC_20240227_103823.084.tdms
-        - January_Window_UTC_20240117_130137.656.tdms
-        - November_Window_UTC_20231109_134947.573.tdms
+        - Available upon request (too large to push to Github)
     -kNN Anoms
         - NDay
             - kNNAnomsTest
