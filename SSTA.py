@@ -94,18 +94,18 @@ def ssta(data, start_channel=1650, end_channel=8500, num=50, thresh=2, get_mask=
     return mask
 
 if __name__ == '__main__':
-    file_path = "November_Window_UTC_20231109_134947.573.tdms"
+    file_path = "Example Windows/November_Window_UTC_20231109_134947.573.tdms"
 
     tdms = TdmsReader(file_path)
     data = get_data(tdms)
-    print("Earthquake Data Loaded")
+    print("Data Loaded")
 
     highcut = -1
-    lowcut = 200
+    lowcut = 100
     filtered_data = filter_waterfall(data, 1000, lowcut=lowcut, highcut=highcut)
-    print("Earthquake Data Filtered")
+    print("Data Filtered")
 
-    mask = ssta(filtered_data, thresh_multiplier=2, num=50, get_mask=False)
+    mask = ssta(filtered_data, thresh=8, num=2, get_mask=False)
     x = np.where(mask > 0)
 
     plot_mask(data, x)

@@ -1,4 +1,5 @@
 from scipy.signal import butter, sosfilt, sosfreqz
+import matplotlib.pyplot as plt
 import numpy as np
 
 
@@ -64,12 +65,10 @@ def filter_waterfall(some_data, fs, lowcut=-1, highcut=-1, order=6):
 
 
 if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-
     # Sample rate and desired cutoff frequencies (in Hz).
-    fs = 5000.0
-    lowcut = 500.0
-    highcut = 1250.0
+    fs = 5000
+    lowcut = 500
+    highcut = 1250
 
     # Plot the frequency response for a few different orders.
     plt.figure(1)
@@ -100,7 +99,7 @@ if __name__ == "__main__":
     plt.clf()
     plt.plot(t, x, label='Noisy signal')
 
-    y = butter_bandpass_filter(x, lowcut, highcut, fs, order=6)
+    y = butter_bandpass_filter(x, lowcut=lowcut, highcut=highcut, fs=fs, order=6)
     plt.plot(t, y, label='Filtered signal (%g Hz)' % f0)
     plt.xlabel('time (seconds)')
     plt.hlines([-a, a], 0, T, linestyles='--')

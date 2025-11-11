@@ -25,6 +25,7 @@ import os, struct, datetime
 import pandas as pd
 import numpy as np
 import mmap
+import matplotlib.pyplot as plt
 
 def load_property_map(xls_file):
     prop_map = pd.read_excel(xls_file, sheetname='Sheet1')
@@ -437,7 +438,7 @@ class TdmsReader(object):
 if __name__ == '__main__':
     print("TDMS Reader demo.")
     
-    file_path = "./30mins/FirstData_UTC_20231109_133947.573.tdms"
+    file_path = "Example Windows/November_Window_UTC_20231109_134947.573.tdms"
 
     print('File: {0}'.format(file_path))
     
@@ -455,16 +456,16 @@ if __name__ == '__main__':
     print('Time samples in file: {0}'.format(tdms.channel_length))
     print('Sampling frequency (Hz): {0}'.format(fs))
     
-    first_channel = 250
-    last_channel = 2275
+    first_channel = 0
+    last_channel = n_channels - 1
     first_time_sample = 0
-    last_time_sample = 3999
+    last_time_sample = tdms.channel_length - 1
     
     
     some_data = tdms.get_data(first_channel, last_channel, first_time_sample, last_time_sample)
     print('Size of data loaded: {0}'.format(some_data.shape))
 
-    import matplotlib.pyplot as plt
+
 
     fig1 = plt.figure()
     img1 = plt.imshow(some_data, aspect='auto', interpolation='none', extent=(depth[first_channel],depth[last_channel], last_time_sample/fs, first_time_sample/fs))

@@ -4,6 +4,7 @@ import datetime
 import gc
 
 from filters import filter_waterfall
+from TDMS_Read import TdmsReader
 
 
 def get_data(tdms, channelnum=-1):
@@ -176,4 +177,8 @@ def full_graph(tdms, max_strain_rate=None, min_strain_rate=None, xmin=0, xmax=0,
 
 
 if __name__ == '__main__':
-    print("TESTING METHODS")
+    file_path = "Example Windows/November_Window_UTC_20231109_134947.573.tdms"
+    tdms = TdmsReader(file_path)
+    data = get_data(tdms)
+
+    full_graph(tdms, 1000, -1000)

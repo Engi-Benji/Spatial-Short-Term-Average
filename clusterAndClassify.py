@@ -78,7 +78,7 @@ def extract_clusters(x):
         x -- An 2D array containing a set of points to be clustered
     """
 
-    point_data = np.array(x)
+    point_data = list(zip(x[1], x[0]))
 
     hdb = HDBSCAN(min_cluster_size= 4, min_samples=None)
     clusters = hdb.fit_predict(point_data)
