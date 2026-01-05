@@ -1,4 +1,6 @@
 # Spatial-Short-Term-Average (SSTA)
+[![DOI](https://zenodo.org/badge/1093476509.svg)](https://doi.org/10.5281/zenodo.18155944)
+
 Summary:
 
 SSTA is a method for detecting nanoseismicity within DAS data with potential applications in the detection of events 
