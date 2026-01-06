@@ -38,7 +38,7 @@ Data:
         - Cromer_Earthquake_UTC_20250126_043253.140.tdms
         - Cromer_Earthquake_UTC_20250126_043323.140.tdms
     -Example Windows
-        - Available upon request (too large to push to Github)
+        - Available on Zenodo (Follow DOI Link)
     -kNN Anoms
         - NDay
             - kNNAnomsTest
