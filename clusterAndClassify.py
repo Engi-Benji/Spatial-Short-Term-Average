@@ -134,8 +134,6 @@ def cluster_association(cluster_data, sample_overlap, channel_overlap, fs, min_w
         stable = True
 
         for i, a in enumerate(copy):
-            #print(len(copy))
-            #print(i)
             if i == len(copy):
                 print("end")
             else:
@@ -173,6 +171,7 @@ def cluster_association(cluster_data, sample_overlap, channel_overlap, fs, min_w
                             copy[i][1] = copy[i][1] if c[1] == 0 else c[1]
                             copy[i][2] = copy[i][2] if c[2] == 0 else c[2]
                             copy[i][3] = copy[i][3] if c[3] == 0 else c[3]
+                            copy[i][4] = copy[i][4] + copy[j][4]
 
                             #print(b)
                             #print(copy[i+j+1])
