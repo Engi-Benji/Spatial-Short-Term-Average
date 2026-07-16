@@ -7,7 +7,7 @@ from filters import filter_waterfall
 from TDMS_Read import TdmsReader
 
 
-def get_data(tdms, channelnum=-1):
+def get_data(tdms, first_chan=-1, last_chan=-1, first_sample=-1, last_sample=-1):
     """Takes a TDMSReader object and returns scaled data from the TDMS file associated
 
     Keyword arguments:
@@ -18,16 +18,26 @@ def get_data(tdms, channelnum=-1):
     props = tdms.get_properties()
     n_channels = tdms.fileinfo['n_channels']
 
-    if channelnum == -1:
+    if first_chan == -1:
         first_channel = 0
+    else:
+        first_channel = first_chan
+
+    if last_chan == -1:
         #If you want to read to the end get the channel length minus one
         last_channel = n_channels
     else:
-        first_channel = channelnum
-        last_channel = channelnum
-    first_time_sample = 0
-    last_time_sample = tdms.channel_length - 1
+        last_channel = last_chan
 
+    if first_sample == -1:
+        first_time_sample = 0
+    else:
+        first_time_sample = first_sample
+
+    if last_sample == -1:
+        last_time_sample = tdms.channel_length - 1
+    else:
+        last_time_sample = last_sample
 
     some_data = tdms.get_data(first_channel, last_channel, first_time_sample, last_time_sample)
     #print('Size of data loaded: {0}'.format(some_data.shape))

@@ -8,6 +8,7 @@ from TDMS_Read import TdmsReader
 from TDMS_Utilities import get_data
 from filters import filter_waterfall
 from SSTA import ssta
+from copy import deepcopy
 
 
 def plot_clusters(data, cluster_info=None, x=None, min_width=-1, max_width=-1, num_points=-1, save=None):
@@ -68,7 +69,6 @@ def plot_clusters(data, cluster_info=None, x=None, min_width=-1, max_width=-1, n
         gc.collect()
     else:
         plt.show(block=False)
-
 
 def extract_clusters(x):
     """Method takes in an input of a set of points and clusters them using HDBScan. The resulting clusters are then
@@ -184,6 +184,101 @@ def cluster_association(cluster_data, sample_overlap, channel_overlap, fs, min_w
             if not stable:
                 break
     return copy
+
+def labelled_cluster_association(cluster_data, label_data, sample_overlap, channel_overlap, fs, min_width, max_width, min_length, max_length):
+
+    label_copy = deepcopy(label_data)
+    label_associations = []
+
+    #massive clusters need filtering or they may skew the association
+    copy = []
+    for c in cluster_data:
+        if min_width <= c[3] - c[2] < max_width and min_length < c[1] - c[0] < max_length:
+            copy.append(c)
+
+    stable = False
+
+    #averaging distance for a signal
+    xOff = channel_overlap / 2
+
+    #fixed time diff
+    yOff = (sample_overlap * fs) / 2
+
+    while not stable:
+        stable = True
+
+        for i, a in enumerate(copy):
+            if i == len(copy):
+                print("end")
+            else:
+                for j, b in enumerate(copy):
+                    if i != j:
+                        x_overlap = False
+                        y_overlap = False
+                        c = [0, 0, 0, 0]
+
+                        #find the midpoint
+                        b_mp = b[2] + int((b[3] - b[2])/2)
+
+                        #midpoint extended overlap
+                        if ((b_mp - xOff if b_mp - xOff < b[2] else b[2]) <= a[2] <= (b_mp + xOff if b_mp + xOff > b[3] else b[3]) <= a[3] or
+                                a[2] <= (b_mp - xOff if b_mp - xOff < b[2] else b[2]) <= a[3] <= (b_mp + xOff if b_mp + xOff > b[3] else b[3]) or
+                                (b_mp - xOff if b_mp - xOff < b[2] else b[2]) <= a[2] <= a[3] <= (b_mp + xOff if b_mp + xOff > b[3] else b[3]) or
+                                a[2] <= (b_mp - xOff if b_mp - xOff < b[2] else b[2]) <= (b_mp + xOff if b_mp + xOff > b[3] else b[3]) <= a[3]):
+                            c[2] = min([a[2], b[2]])
+                            c[3] = max([a[3], b[3]])
+                            x_overlap = True
+
+                        #is it within the length of a window?
+                        #yOff = b[1] - b[0]
+
+                        #boundry extended overlap
+                        if b[0] - yOff <= a[0] <= b[1] + yOff <= a[1] or a[0] <= b[0] - yOff <= a[1] <= b[1] + yOff or b[0] - yOff <= a[0] <= a[1] <= b[1] + yOff or a[0] <= b[0] - yOff <= b[1] + yOff <= a[1]:
+                            c[0] = min([a[0], b[0]])
+                            c[1] = max([a[1], b[1]])
+                            y_overlap = True
+
+                        if x_overlap and y_overlap:
+                            stable = False
+
+                            copy[i][0] = copy[i][0] if c[0] == 0 else c[0]
+                            copy[i][1] = copy[i][1] if c[1] == 0 else c[1]
+                            copy[i][2] = copy[i][2] if c[2] == 0 else c[2]
+                            copy[i][3] = copy[i][3] if c[3] == 0 else c[3]
+                            copy[i][4] = copy[i][4] + copy[j][4]
+
+                            val = label_copy[j]
+                            val.append(i)
+                            label_associations.append(val)
+
+                            #print(b)
+                            #print(copy[i+j+1])
+                            try:
+                                del copy[j]
+                                del label_copy[j]
+                            except IndexError:
+                                print("Index Error")
+                            break
+
+            if not stable:
+                break
+
+    #find the majority label of a cluster and set it to that
+    label_majority=[]
+    for i, l in enumerate(label_copy):
+        # print(l)
+        labels = {l[2]: 1}
+        for la in label_associations:
+            if la[3] == i:
+                if la[2] in labels:
+                    labels[la[2]] = labels[la[2]] + 1
+                else:
+                    labels[la[2]] = 1
+
+        # print(max(labels, key=labels.get))
+        label_majority.append(max(labels, key=labels.get))
+
+    return copy, label_majority
 
 if __name__ == '__main__':
     file_path = "Example Windows/November_Window_UTC_20231109_134947.573.tdms"
