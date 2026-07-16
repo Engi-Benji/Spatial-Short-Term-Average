@@ -250,3 +250,9 @@ if __name__ == '__main__':
     clusters_folder = f"{device}:/Clusters/{window}/"
 
     labelled_cnn_event_windows_10(tdms_folder, labels_folder, clusters_folder, save, 80, 120)
+
+    # tdms_directory = "G:/1000Hz Data/NDay/"
+    # cluster_directory = "G:/New Data/NovemberSanity/Clusters/"
+    # save = "G:/New Data/NovemberSanity/CNN Data"
+    #
+    # cnn_event_windows_10(tdms_directory, cluster_directory, save, 80, 120)
