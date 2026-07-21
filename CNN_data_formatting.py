@@ -583,17 +583,17 @@ def labelled_cnn_event_windows_30(tdms_folder, labels_folder, clusters_folder, s
 if __name__ == '__main__':
 
     device = "G"
-    window = "FNight"
-    save = F"{device}:\\CNN Formatted Data - 80 x 120\\{window}"
+    window = "NDay"
+    save = F"{device}:\\CNN Formatted Data - 80 x 240\\{window}"
 
     tdms_folder = f"{device}:/1000Hz Data/{window}/"
     labels_folder = f"{device}:/Labeled Clusters and Features/{window}/"
     clusters_folder = f"{device}:/Clusters/{window}/"
 
     if window == "FDay" or window == "FNight":
-        labelled_cnn_event_windows_30(tdms_folder, labels_folder, clusters_folder, save, 80, 120)
+        labelled_cnn_event_windows_30(tdms_folder, labels_folder, clusters_folder, save, 80, 240)
     else:
-        labelled_cnn_event_windows_10(tdms_folder, labels_folder, clusters_folder, save, 80, 120)
+        labelled_cnn_event_windows_10(tdms_folder, labels_folder, clusters_folder, save, 80, 240)
 
 
     # tdms_directory = "G:/1000Hz Data/NDay/"

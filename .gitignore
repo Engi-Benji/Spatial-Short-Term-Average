@@ -1,3 +1,4 @@
 *.pyc
 *.tdms
 /points
+*.pth
