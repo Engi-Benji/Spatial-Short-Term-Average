@@ -108,7 +108,7 @@ def tenseclabelling(tdms_folder, clusters_folder, save, window_width, window_hei
             else:
 
                 combined_data = np.append(prior_data, data, axis=0)
-                filtered_data = np.append(prior_fdata, filtered_data, axis=0)
+                combined_filtered_data = np.append(prior_fdata, filtered_data, axis=0)
 
                 clust_num = ((file_number + 1) * 2) - 1
 
@@ -142,7 +142,7 @@ def tenseclabelling(tdms_folder, clusters_folder, save, window_width, window_hei
 
                 cluster_data = cluster_association(cluster_data, 0.25, 40, 1000, -1, 100, -1, 1000)
 
-                label_cluster(cluster_data, combined_data, filtered_data, f"{save}-{file_number}", window_width, window_height, offset=20)
+                label_cluster(cluster_data, combined_data, combined_filtered_data, f"{save}-{file_number}", window_width, window_height, offset=20)
 
             prior_data = data
             prior_fdata = filtered_data
