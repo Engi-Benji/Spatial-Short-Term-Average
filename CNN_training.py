@@ -93,12 +93,12 @@ if __name__ == '__main__':
     print('     1. Loading Data')
 
     num_epochs = 30
-    width = 160
+    width = 80
     height = 120
     use_raw = False
 
     root_folder = f"G:/CNN Formatted Data - {width} x {height}"
-    model_save = f"{width}x{height}_{'raw' if use_raw else 'filtered'}_unmodified_trained_CNN.pth"
+    model_save = f"./models/{width}x{height}_{'raw' if use_raw else 'filtered'}_filtered_CNN.pth"
 
     height += 1
     width += 1
@@ -306,7 +306,7 @@ if __name__ == '__main__':
     minVal = win_modified_balanced.min()
     maxVal = win_modified_balanced.max()
 
-    win_raw_balanced = (((win_modified_balanced - minVal) / (maxVal - minVal)) - 0.5) * 2
+    win_raw_balanced_normalised = (((win_modified_balanced - minVal) / (maxVal - minVal)) - 0.5) * 2
 
     print(f'Max: {win_modified_balanced.max()}, Min: {win_modified_balanced.min()}')
 
@@ -317,7 +317,7 @@ if __name__ == '__main__':
     random_seed = 2
 
     # train validation split
-    win_raw_train, temp_win, labels_train_enc, temp_label = train_test_split(win_modified_balanced, labels_balanced,
+    win_raw_train, temp_win, labels_train_enc, temp_label = train_test_split(win_raw_balanced_normalised, labels_balanced,
                                                                                  test_size=0.3)
     win_raw_val, win_raw_test, labels_val_enc, labels_test_enc = train_test_split(temp_win, temp_label,
                                                                                  test_size=0.5)

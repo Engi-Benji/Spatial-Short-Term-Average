@@ -4,7 +4,6 @@ from copy import deepcopy
 
 import numpy as np
 from matplotlib import pyplot as plt, patches
-from scipy.stats import skew, kurtosis
 from tqdm import tqdm
 from matplotlib import pyplot as plt
 from matplotlib import patches
@@ -12,7 +11,16 @@ from matplotlib import patches
 from TDMS_Batch_Reader import load_folder, sort_array
 from TDMS_Utilities import get_data
 from clustering import cluster_association
-from filters import filter_waterfall
+
+from scipy.fft import rfft, rfftfreq
+from scipy.stats import skew, kurtosis
+from filters import filter_waterfall, butter_bandpass_filter
+
+import torch
+from torch.utils.data import DataLoader, TensorDataset
+from PyTorch_Darknet53_master.model import darknet53
+from keras.utils import to_categorical
+
 
 def test_graphs(data, col, fig = None, ax = None):
     if fig is None:
@@ -40,46 +48,267 @@ def test_graphs(data, col, fig = None, ax = None):
 
     return fig, ax
 
-def label_cluster(cluster_data, data, filtered_data, save, window_width, window_height, offset = 0):
+def CNN_window_preparation(cluster_data, data, filtered_data, window_width, window_height, offset = 0):
+
+    raw = []
+    filtered = []
+    labels = []
 
     for event_number, cluster in enumerate(cluster_data):
 
         sample_midp = cluster[0] + int((cluster[1] - cluster[0])/2) - offset
         channel_midp = cluster[2] + int((cluster[3] - cluster[2])/2)
 
-        bounds = 1000
-        fig1, ax = plt.subplots()
-        img1 = plt.imshow(data, cmap='bwr', vmin=-bounds, vmax=bounds)
+        # bounds = 1000
+        # fig1, ax = plt.subplots()
+        # img1 = plt.imshow(data, cmap='bwr', vmin=-bounds, vmax=bounds)
+        #
+        # rect = patches.Rectangle(((channel_midp - int(window_width/2)), (sample_midp - int(window_height/2))), 80, 120, linewidth=2, edgecolor="r", facecolor='none')
+        # ax.add_patch(rect)
+        #
+        # fig1.colorbar(img1, label= "Nano Strain per Second [nm/m/s]")
+        # plt.show()
+        #
+        # bounds = 1000
+        # fig1 = plt.figure()
+        # img1 = plt.imshow(data[(sample_midp - int(window_height/2)):(sample_midp + int(window_height/2)), (channel_midp - int(window_width/2)):(channel_midp + int(window_width/2))], cmap='bwr', vmin=-bounds, vmax=bounds)
+        # fig1.colorbar(img1, label= "Nano Strain per Second [nm/m/s]")
+        # fig1.show()
+        #
+        # bounds = 1000
+        # fig1 = plt.figure()
+        # img1 = plt.imshow(filtered_data[(sample_midp - int(window_height/2)):(sample_midp + int(window_height/2)), (channel_midp - int(window_width/2)):(channel_midp + int(window_width/2))], cmap='bwr', vmin=-bounds, vmax=bounds)
+        # fig1.colorbar(img1, label= "Nano Strain per Second [nm/m/s]")
+        # fig1.show()
 
-        rect = patches.Rectangle(((channel_midp - int(window_width/2)), (sample_midp - int(window_height/2))), 80, 120, linewidth=2, edgecolor="r", facecolor='none')
-        ax.add_patch(rect)
+        w = data[(sample_midp - int(window_height/2)):(sample_midp + int(window_height/2) + 1), (channel_midp - int(window_width/2)):(channel_midp + int(window_width/2) + 1)]
+        fw = filtered_data[(sample_midp - int(window_height/2)):(sample_midp + int(window_height/2) + 1), (channel_midp - int(window_width/2)):(channel_midp + int(window_width/2) + 1)]
 
-        fig1.colorbar(img1, label= "Nano Strain per Second [nm/m/s]")
-        plt.show()
+        raw.append(w)
+        filtered.append(fw)
+        labels.append("u")
 
-        bounds = 1000
-        fig1 = plt.figure()
-        img1 = plt.imshow(data[(sample_midp - int(window_height/2)):(sample_midp + int(window_height/2)), (channel_midp - int(window_width/2)):(channel_midp + int(window_width/2))], cmap='bwr', vmin=-bounds, vmax=bounds)
-        fig1.colorbar(img1, label= "Nano Strain per Second [nm/m/s]")
-        fig1.show()
+    return [raw, filtered, labels]
 
-        bounds = 1000
-        fig1 = plt.figure()
-        img1 = plt.imshow(filtered_data, cmap='bwr', vmin=-bounds, vmax=bounds)
-        fig1.colorbar(img1, label= "Nano Strain per Second [nm/m/s]")
-        plt.savefig(f"{save}-{event_number}.png", dpi=300)
+def label_cluster(cnn_model_path, cluster_data, data, filtered_data, save, window_width, window_height, offset = 0):
 
-        bounds = 1000
-        fig1 = plt.figure()
-        img1 = plt.imshow(filtered_data[(sample_midp - int(window_height/2)):(sample_midp + int(window_height/2)), (channel_midp - int(window_width/2)):(channel_midp + int(window_width/2))], cmap='bwr', vmin=-bounds, vmax=bounds)
-        fig1.colorbar(img1, label= "Nano Strain per Second [nm/m/s]")
-        fig1.show()
+    windows = CNN_window_preparation(cluster_data, data, filtered_data, window_width, window_height, offset)
 
-        w = data[(sample_midp - int(window_height/2)):(sample_midp + int(window_height/2)), (channel_midp - int(window_width/2)):(channel_midp + int(window_width/2))]
-        fw = filtered_data[(sample_midp - int(window_height/2)):(sample_midp + int(window_height/2)), (channel_midp - int(window_width/2)):(channel_midp + int(window_width/2))]
+    if not len(windows[0]) == 0:
+
+        win_raw = windows[0]
+        win_filtered = windows[1]
+        labels = windows[2]
+
+        temp_raw = []
+        temp_filtered = []
+        temp_labels = []
+
+        for i, (w, f, l) in enumerate(zip(win_raw, win_filtered, labels)):
+            if np.shape(w)[0] == window_height+1 and np.shape(w)[1] == window_width+1:
+                temp_raw.append(w)
+                temp_filtered.append(f)
+                temp_labels.append(l)
+
+        win_raw = np.array(temp_raw)
+        win_filtered = np.array(temp_filtered)
+        labels = temp_labels
+
+        # print(f"Total Samples: {len(win_raw)}")
+
+        stacks = []
+        for win in win_raw:
+            stack = None
+            for i in range(len(win[0])):
+                if stack is None:
+                    stack = deepcopy(win[:, i])
+                else:
+                    stack = stack + win[:, i]
+
+            stack = stack / len(win[0])
+            stacks.append(stack)
+
+        fstacks = []
+        for win in win_filtered:
+            stack = None
+            for i in range(len(win[0])):
+                if stack is None:
+                    stack = deepcopy(win[:, i])
+                else:
+                    stack = stack + win[:, i]
+
+            stack = stack / len(win[0])
+            fstacks.append(stack)
+
+        fs = 1000
+
+        spectra = []
+        for stack in stacks:
+            yf = rfft(stack)
+
+            #padding the end with 0s
+            empty = np.zeros(window_height+1)
+            for i in range(len(yf)):
+                empty[i] = yf[i]
+
+            spectra.append(empty)
 
 
-def tenseclabelling(tdms_folder, clusters_folder, save, window_width, window_height):
+
+        features = []
+        for win, fwin, stack, fstack in zip(win_raw, win_filtered, stacks, fstacks):
+            s_max = np.max(win)
+            s_min = np.min(win)
+
+            fs_max = np.max(fwin)
+            fs_min = np.min(fwin)
+
+            #temporal stacked
+
+            t_mean = np.mean(stack)
+            t_std = np.std(stack)
+            t_skew = skew(stack)
+            t_kurtosis = kurtosis(stack)
+
+            ft_mean = np.mean(fstack)
+            ft_std = np.std(fstack)
+            ft_skew = skew(fstack)
+            ft_kurtosis = kurtosis(fstack)
+
+            #spectral stacked
+
+            stack20 = butter_bandpass_filter(stack, 1000, 20, -1)
+            stack100 = butter_bandpass_filter(stack, 1000, 100, -1)
+
+            N = len(stack)
+            yf = rfft(stack)
+            xf = rfftfreq(N, 1/fs)
+
+            N = len(stack20)
+            yf20 = rfft(stack20)
+            xf20 = rfftfreq(N, 1/fs)
+
+            N = len(stack100)
+            yf100 = rfft(stack100)
+            xf100 = rfftfreq(N, 1/fs)
+
+            sp_kurtosis = kurtosis(np.abs(yf))
+            sp_skew = skew(np.abs(yf))
+            sp_domFreq = xf[np.where(np.abs(yf) == np.max(np.abs(yf)))[0]][0]
+            sp_domFreq_amp = np.max(np.abs(yf))
+
+            sp_domFreq_20 = xf20[np.where(np.abs(yf20) == np.max(np.abs(yf20)))[0]][0]
+            sp_domFreq_amp_20 = np.max(np.abs(yf20))
+
+            sp_domFreq_100 = xf100[np.where(np.abs(yf100) == np.max(np.abs(yf100)))[0]][0]
+            sp_domFreq_amp_100 = np.max(np.abs(yf100))
+
+            feature = [s_max, s_min, fs_max, fs_min, t_mean, t_std, t_skew, t_kurtosis, ft_mean, ft_std, ft_skew, ft_kurtosis, sp_kurtosis, sp_skew, sp_domFreq, sp_domFreq_amp, sp_domFreq_20, sp_domFreq_amp_20, sp_domFreq_100, sp_domFreq_amp_100]
+
+            # padding the end with 0s
+            empty = np.zeros(window_height+1)
+            for i in range(len(feature)):
+                empty[i] = feature[i]
+
+            features.append(empty)
+
+        modified_data = []
+        for win, stack, fstack, spec, feature in zip(win_filtered, stacks, fstacks, spectra, features):
+            win = np.append(win, np.reshape(stack, (window_height+1, 1)), axis=1)
+            win = np.append(win, np.reshape(fstack, (window_height+1, 1)), axis=1)
+            win = np.append(win, np.reshape(spec, (window_height+1, 1)), axis=1)
+            win = np.append(win, np.reshape(feature, (window_height+1, 1)), axis=1)
+            modified_data.append(win)
+
+        modified_data = np.array(modified_data)
+
+        # print("2. Data Preprocessing ----------")
+
+        modified_data = np.array(modified_data).astype(np.float32)
+        reshaped_data = modified_data.reshape(-1, 1, 121, 85)
+
+        labels = np.array(labels)
+
+        for l in labels:
+            if l != "f":
+                labels[labels == l] = "p"
+
+        labels = np.array(labels)
+        unique = np.unique(labels)
+        # print(unique)
+
+        for i, u in enumerate(unique):
+            labels[labels == u] = i
+
+        labels_enc = to_categorical(labels, num_classes=2)
+
+        minVal = reshaped_data.min()
+        maxVal = reshaped_data.max()
+
+        normalised_data = (((reshaped_data - minVal) / (maxVal - minVal)) - 0.5) * 2
+
+        test_dataset = TensorDataset(torch.from_numpy(normalised_data), torch.from_numpy(labels_enc))
+        test_loader = DataLoader(test_dataset, shuffle=False, batch_size=16)
+
+        # print("3. Load Trained Model ----------")
+
+        train_net = darknet53(2)
+        train_net.load_state_dict(torch.load(cnn_model_path))
+
+        # print("4. Classify and Save Windows ----------")
+        train_net.eval()
+
+
+        count = 0
+        with torch.no_grad():
+            for inputs, targets in test_loader:
+                outputs = train_net(inputs)
+                _, predicted = torch.max(outputs.data, 1)
+
+                for w, p in zip(inputs, predicted):
+
+                    if p.item() == 0:
+                        #we ignore this as we dont need anymore footsteps
+                        print("save location footprint")
+                    else:
+                        #this is the data we want to label
+                        print("save location other")
+
+                    bounds = 1000
+                    fig1 = plt.figure()
+                    img1 = plt.imshow(data, cmap='bwr', vmin=-bounds, vmax=bounds)
+                    #0 == foot, 1 == other
+                    plt.title(f"original")
+                    fig1.colorbar(img1, label= "Nano Strain per Second [nm/m/s]")
+                    fig1.show()
+
+                    bounds
+                    fig1 = plt.figure()
+                    img1 = plt.imshow(w.squeeze(), cmap='bwr', vmin=-bounds, vmax=bounds)
+                    #0 == foot, 1 == other
+                    plt.title(f"label = {p}")
+                    fig1.colorbar(img1, label= "Nano Strain per Second [nm/m/s]")
+                    fig1.show()
+
+                    bounds = 1000
+                    fig1 = plt.figure()
+                    img1 = plt.imshow(win_raw[count], cmap='bwr', vmin=-bounds, vmax=bounds)
+                    #0 == foot, 1 == other
+                    plt.title(f"original")
+                    fig1.colorbar(img1, label= "Nano Strain per Second [nm/m/s]")
+                    fig1.show()
+
+                    bounds = 1000
+                    fig1 = plt.figure()
+                    img1 = plt.imshow(win_filtered[count], cmap='bwr', vmin=-bounds, vmax=bounds)
+                    #0 == foot, 1 == other
+                    plt.title(f"original")
+                    fig1.colorbar(img1, label= "Nano Strain per Second [nm/m/s]")
+                    fig1.show()
+
+                    count += 1
+
+def tenseclabelling(tdms_folder, clusters_folder, cnn_model_path, save, window_width, window_height):
 
     filenames = sorted([filename for filename in os.listdir(tdms_folder)])
 
@@ -103,7 +332,7 @@ def tenseclabelling(tdms_folder, clusters_folder, save, window_width, window_hei
 
                 cluster_data = cluster_association(cluster_data, 0.25, 40, 1000, -1, 100, -1, 1000)
 
-                label_cluster(cluster_data, data, filtered_data, f"{save}-{file_number}", window_width, window_height)
+                label_cluster(cnn_model_path, cluster_data, data, filtered_data, f"{save}-{file_number}", window_width, window_height)
 
             else:
 
@@ -142,7 +371,7 @@ def tenseclabelling(tdms_folder, clusters_folder, save, window_width, window_hei
 
                 cluster_data = cluster_association(cluster_data, 0.25, 40, 1000, -1, 100, -1, 1000)
 
-                label_cluster(cluster_data, combined_data, combined_filtered_data, f"{save}-{file_number}", window_width, window_height, offset=20)
+                label_cluster(cnn_model_path, cluster_data, combined_data, combined_filtered_data, f"{save}-{file_number}", window_width, window_height, offset=20)
 
             prior_data = data
             prior_fdata = filtered_data
@@ -317,5 +546,6 @@ if __name__ == '__main__':
 
     tdms_folder = f"{device}:/1000Hz Data/{window}/"
     clusters_folder = f"{device}:/Clusters/{window}/"
+    cnn_model_path = f"./models/80x120_filtered_filtered_CNN.pth"
 
-    tenseclabelling(tdms_folder, clusters_folder, save, 80, 120)
+    tenseclabelling(tdms_folder, clusters_folder, cnn_model_path, save, 80, 120)
