@@ -92,21 +92,43 @@ if __name__ == '__main__':
     print("------------ Data Preparation ------------")
     print('     1. Loading Data')
 
-    num_epochs = 30
+    num_epochs = 50
     width = 80
     height = 120
     use_raw = False
 
     root_folder = f"G:/CNN Formatted Data - {width} x {height}"
-    model_save = f"./models/{width}x{height}_{'raw' if use_raw else 'filtered'}_filtered_CNN.pth"
+    model_save = f"./models/{width}x{height}_{'raw' if use_raw else 'filtered'}_CNN.pth"
 
     height += 1
     width += 1
 
     win_raw, win_filtered, labels = data_loading(root_folder, width, height)
 
+    # ------------- normalisation ---------------
+    print('     2. Normalizing Data')
+
+    win_raw_normalised = []
+    win_filtered_normalised = []
+    for w, f in zip(win_raw, win_filtered):
+
+        minVal = w.min()
+        maxVal = w.max()
+
+        w_normalised = (((w - minVal) / (maxVal - minVal)) - 0.5) * 2
+        win_raw_normalised.append(w_normalised)
+
+        minVal = f.min()
+        maxVal = f.max()
+
+        f_normalised = (((f - minVal) / (maxVal - minVal)) - 0.5) * 2
+        win_filtered_normalised.append(f_normalised)
+
+    win_raw_normalised = np.array(win_raw_normalised)
+    win_filtered_normalised = np.array(win_filtered_normalised)
+
     stacks = []
-    for win in win_raw:
+    for win in win_raw_normalised:
         stack = None
         for i in range(len(win[0])):
             if stack is None:
@@ -118,7 +140,7 @@ if __name__ == '__main__':
         stacks.append(stack)
 
     fstacks = []
-    for win in win_filtered:
+    for win in win_filtered_normalised:
         stack = None
         for i in range(len(win[0])):
             if stack is None:
@@ -143,7 +165,7 @@ if __name__ == '__main__':
         spectra.append(empty)
 
     features = []
-    for win, fwin, stack, fstack in zip(win_raw, win_filtered, stacks, fstacks):
+    for win, fwin, stack, fstack in zip(win_raw_normalised, win_filtered_normalised, stacks, fstacks):
         s_max = np.max(win)
         s_min = np.min(win)
 
@@ -200,34 +222,34 @@ if __name__ == '__main__':
         features.append(empty)
 
     modified_data = []
-    # if use_raw:
-    #
-    #     for win, stack, fstack, spec, feature in zip(win_raw, stacks, fstacks, spectra, features):
-    #         win = np.append(win, np.reshape(stack, (height, 1)), axis=1)
-    #         win = np.append(win, np.reshape(fstack, (height, 1)), axis=1)
-    #         win = np.append(win, np.reshape(spec, (height, 1)), axis=1)
-    #         win = np.append(win, np.reshape(feature, (height, 1)), axis=1)
-    #         modified_data.append(win)
-    #
-    # else:
-    #
-    #     for win, stack, fstack, spec, feature in zip(win_filtered, stacks, fstacks, spectra, features):
-    #         win = np.append(win, np.reshape(stack, (height, 1)), axis=1)
-    #         win = np.append(win, np.reshape(fstack, (height, 1)), axis=1)
-    #         win = np.append(win, np.reshape(spec, (height, 1)), axis=1)
-    #         win = np.append(win, np.reshape(feature, (height, 1)), axis=1)
-    #         modified_data.append(win)
-    #
-    # win_modified = modified_data
+    if use_raw:
 
-    for stack, fstack, spec, feature in zip(stacks, fstacks, spectra, features):
-        stack = np.reshape(stack, (height, 1))
-        stack = np.append(stack, np.reshape(fstack, (height, 1)), axis=1)
-        stack = np.append(stack, np.reshape(spec, (height, 1)), axis=1)
-        stack = np.append(stack, np.reshape(feature, (height, 1)), axis=1)
-        modified_data.append(stack)
+        for win, stack, fstack, spec, feature in zip(win_raw_normalised, stacks, fstacks, spectra, features):
+            win = np.append(win, np.reshape(stack, (height, 1)), axis=1)
+            win = np.append(win, np.reshape(fstack, (height, 1)), axis=1)
+            win = np.append(win, np.reshape(spec, (height, 1)), axis=1)
+            win = np.append(win, np.reshape(feature, (height, 1)), axis=1)
+            modified_data.append(win)
+
+    else:
+
+        for win, stack, fstack, spec, feature in zip(win_filtered_normalised, stacks, fstacks, spectra, features):
+            win = np.append(win, np.reshape(stack, (height, 1)), axis=1)
+            win = np.append(win, np.reshape(fstack, (height, 1)), axis=1)
+            win = np.append(win, np.reshape(spec, (height, 1)), axis=1)
+            win = np.append(win, np.reshape(feature, (height, 1)), axis=1)
+            modified_data.append(win)
 
     win_modified = modified_data
+
+    # for stack, fstack, spec, feature in zip(stacks, fstacks, spectra, features):
+    #     stack = np.reshape(stack, (height, 1))
+    #     stack = np.append(stack, np.reshape(fstack, (height, 1)), axis=1)
+    #     stack = np.append(stack, np.reshape(spec, (height, 1)), axis=1)
+    #     stack = np.append(stack, np.reshape(feature, (height, 1)), axis=1)
+    #     modified_data.append(stack)
+    #
+    # win_modified = modified_data
 
     # if use_raw:
     #     win_modified = win_raw
@@ -258,7 +280,7 @@ if __name__ == '__main__':
     print('     2. Reshaping Data')
     win_modified = np.array(win_modified).astype(np.float32)
     # reshaped_raw = win_raw.reshape(-1, 1, 242, 81)
-    reshaped_modified = win_modified.reshape(-1, 1, height, 4)
+    reshaped_modified = win_modified.reshape(-1, 1, height, width + 4)
     # reshaped_raw = win_raw.reshape(-1, 1, 7, 10)
 
     labels = np.array(labels)
@@ -300,16 +322,6 @@ if __name__ == '__main__':
     win_modified_balanced = np.array(win_modified_balanced)
     labels_balanced = np.array(labels_balanced)
 
-
-    # ------------- normalisation ---------------
-    print('     4. Normalizing Data')
-    minVal = win_modified_balanced.min()
-    maxVal = win_modified_balanced.max()
-
-    win_raw_balanced_normalised = (((win_modified_balanced - minVal) / (maxVal - minVal)) - 0.5) * 2
-
-    print(f'Max: {win_modified_balanced.max()}, Min: {win_modified_balanced.min()}')
-
     # train test split
     # ================
     print('     5. Splitting Data')
@@ -317,7 +329,7 @@ if __name__ == '__main__':
     random_seed = 2
 
     # train validation split
-    win_raw_train, temp_win, labels_train_enc, temp_label = train_test_split(win_raw_balanced_normalised, labels_balanced,
+    win_raw_train, temp_win, labels_train_enc, temp_label = train_test_split(win_modified_balanced, labels_balanced,
                                                                                  test_size=0.3)
     win_raw_val, win_raw_test, labels_val_enc, labels_test_enc = train_test_split(temp_win, temp_label,
                                                                                  test_size=0.5)

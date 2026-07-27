@@ -4,6 +4,7 @@ from copy import deepcopy
 
 import numpy as np
 from matplotlib import pyplot as plt, patches
+from sympy import false
 from tqdm import tqdm
 from matplotlib import pyplot as plt
 from matplotlib import patches
@@ -93,6 +94,10 @@ def CNN_window_preparation(cluster_data, data, filtered_data, window_width, wind
 def label_cluster(cnn_model_path, cluster_data, data, filtered_data, save, window_width, window_height, offset = 0):
 
     windows = CNN_window_preparation(cluster_data, data, filtered_data, window_width, window_height, offset)
+    use_raw = False
+
+    window_height += 1
+    window_width += 1
 
     if not len(windows[0]) == 0:
 
@@ -105,7 +110,7 @@ def label_cluster(cnn_model_path, cluster_data, data, filtered_data, save, windo
         temp_labels = []
 
         for i, (w, f, l) in enumerate(zip(win_raw, win_filtered, labels)):
-            if np.shape(w)[0] == window_height+1 and np.shape(w)[1] == window_width+1:
+            if np.shape(w)[0] == window_height and np.shape(w)[1] == window_width:
                 temp_raw.append(w)
                 temp_filtered.append(f)
                 temp_labels.append(l)
@@ -114,10 +119,27 @@ def label_cluster(cnn_model_path, cluster_data, data, filtered_data, save, windo
         win_filtered = np.array(temp_filtered)
         labels = temp_labels
 
-        # print(f"Total Samples: {len(win_raw)}")
+        win_raw_normalised = []
+        win_filtered_normalised = []
+        for w, f in zip(win_raw, win_filtered):
+
+            minVal = w.min()
+            maxVal = w.max()
+
+            w_normalised = (((w - minVal) / (maxVal - minVal)) - 0.5) * 2
+            win_raw_normalised.append(w_normalised)
+
+            minVal = f.min()
+            maxVal = f.max()
+
+            f_normalised = (((f - minVal) / (maxVal - minVal)) - 0.5) * 2
+            win_filtered_normalised.append(f_normalised)
+
+        win_raw_normalised = np.array(win_raw_normalised)
+        win_filtered_normalised = np.array(win_filtered_normalised)
 
         stacks = []
-        for win in win_raw:
+        for win in win_raw_normalised:
             stack = None
             for i in range(len(win[0])):
                 if stack is None:
@@ -129,7 +151,7 @@ def label_cluster(cnn_model_path, cluster_data, data, filtered_data, save, windo
             stacks.append(stack)
 
         fstacks = []
-        for win in win_filtered:
+        for win in win_filtered_normalised:
             stack = None
             for i in range(len(win[0])):
                 if stack is None:
@@ -147,16 +169,14 @@ def label_cluster(cnn_model_path, cluster_data, data, filtered_data, save, windo
             yf = rfft(stack)
 
             #padding the end with 0s
-            empty = np.zeros(window_height+1)
+            empty = np.zeros(window_height)
             for i in range(len(yf)):
                 empty[i] = yf[i]
 
             spectra.append(empty)
 
-
-
         features = []
-        for win, fwin, stack, fstack in zip(win_raw, win_filtered, stacks, fstacks):
+        for win, fwin, stack, fstack in zip(win_raw_normalised, win_filtered_normalised, stacks, fstacks):
             s_max = np.max(win)
             s_min = np.min(win)
 
@@ -206,26 +226,72 @@ def label_cluster(cnn_model_path, cluster_data, data, filtered_data, save, windo
             feature = [s_max, s_min, fs_max, fs_min, t_mean, t_std, t_skew, t_kurtosis, ft_mean, ft_std, ft_skew, ft_kurtosis, sp_kurtosis, sp_skew, sp_domFreq, sp_domFreq_amp, sp_domFreq_20, sp_domFreq_amp_20, sp_domFreq_100, sp_domFreq_amp_100]
 
             # padding the end with 0s
-            empty = np.zeros(window_height+1)
+            empty = np.zeros(window_height)
             for i in range(len(feature)):
                 empty[i] = feature[i]
 
             features.append(empty)
 
         modified_data = []
-        for win, stack, fstack, spec, feature in zip(win_filtered, stacks, fstacks, spectra, features):
-            win = np.append(win, np.reshape(stack, (window_height+1, 1)), axis=1)
-            win = np.append(win, np.reshape(fstack, (window_height+1, 1)), axis=1)
-            win = np.append(win, np.reshape(spec, (window_height+1, 1)), axis=1)
-            win = np.append(win, np.reshape(feature, (window_height+1, 1)), axis=1)
-            modified_data.append(win)
+        if use_raw:
 
-        modified_data = np.array(modified_data)
+            for win, stack, fstack, spec, feature in zip(win_raw_normalised, stacks, fstacks, spectra, features):
+                win = np.append(win, np.reshape(stack, (window_height, 1)), axis=1)
+                win = np.append(win, np.reshape(fstack, (window_height, 1)), axis=1)
+                win = np.append(win, np.reshape(spec, (window_height, 1)), axis=1)
+                win = np.append(win, np.reshape(feature, (window_height, 1)), axis=1)
+                modified_data.append(win)
 
-        # print("2. Data Preprocessing ----------")
+        else:
 
-        modified_data = np.array(modified_data).astype(np.float32)
-        reshaped_data = modified_data.reshape(-1, 1, 121, 85)
+            for win, stack, fstack, spec, feature in zip(win_filtered_normalised, stacks, fstacks, spectra, features):
+                win = np.append(win, np.reshape(stack, (window_height, 1)), axis=1)
+                win = np.append(win, np.reshape(fstack, (window_height, 1)), axis=1)
+                win = np.append(win, np.reshape(spec, (window_height, 1)), axis=1)
+                win = np.append(win, np.reshape(feature, (window_height, 1)), axis=1)
+                modified_data.append(win)
+
+        win_modified = modified_data
+
+        # for stack, fstack, spec, feature in zip(stacks, fstacks, spectra, features):
+        #     stack = np.reshape(stack, (height, 1))
+        #     stack = np.append(stack, np.reshape(fstack, (height, 1)), axis=1)
+        #     stack = np.append(stack, np.reshape(spec, (height, 1)), axis=1)
+        #     stack = np.append(stack, np.reshape(feature, (height, 1)), axis=1)
+        #     modified_data.append(stack)
+        #
+        # win_modified = modified_data
+
+        # if use_raw:
+        #     win_modified = win_raw
+        # else:
+        #     win_modified = win_filtered
+
+        # spectrograms = []
+        # for stack in stacks:
+        #     f, t, Sxx = signal.spectrogram(stack, fs, nperseg=12, mode= "magnitude")
+        #     spectrograms.append(Sxx)
+        #
+        # win_raw = spectrograms
+
+        # combo = []
+        # for w, wf in zip(win_raw, win_filtered):
+        #     combo.append(np.append(w, wf, axis=1))
+        #
+        # win_raw = combo
+        #
+        # bounds = 1000
+        #
+        # fig1 = plt.figure()
+        # img1 = plt.imshow(combo[0], cmap='bwr', vmin=-bounds, vmax=bounds)
+        # plt.title(labels[0])
+        # fig1.show()
+
+        # reshape for pytorch
+        win_modified = np.array(win_modified).astype(np.float32)
+        # reshaped_raw = win_raw.reshape(-1, 1, 242, 81)
+        reshaped_modified = win_modified.reshape(-1, 1, window_height, window_width + 4)
+        # reshaped_raw = win_raw.reshape(-1, 1, 7, 10)
 
         labels = np.array(labels)
 
@@ -235,20 +301,17 @@ def label_cluster(cnn_model_path, cluster_data, data, filtered_data, save, windo
 
         labels = np.array(labels)
         unique = np.unique(labels)
-        # print(unique)
+        print(unique)
 
         for i, u in enumerate(unique):
             labels[labels == u] = i
 
         labels_enc = to_categorical(labels, num_classes=2)
 
-        minVal = reshaped_data.min()
-        maxVal = reshaped_data.max()
+        win_modified_balanced = np.array(reshaped_modified)
 
-        normalised_data = (((reshaped_data - minVal) / (maxVal - minVal)) - 0.5) * 2
-
-        test_dataset = TensorDataset(torch.from_numpy(normalised_data), torch.from_numpy(labels_enc))
-        test_loader = DataLoader(test_dataset, shuffle=False, batch_size=16)
+        test_dataset = TensorDataset(torch.from_numpy(win_modified_balanced), torch.from_numpy(labels_enc))
+        test_loader = DataLoader(test_dataset, shuffle=False)
 
         # print("3. Load Trained Model ----------")
 
@@ -282,7 +345,7 @@ def label_cluster(cnn_model_path, cluster_data, data, filtered_data, save, windo
                     fig1.colorbar(img1, label= "Nano Strain per Second [nm/m/s]")
                     fig1.show()
 
-                    bounds
+                    bounds = 0.1
                     fig1 = plt.figure()
                     img1 = plt.imshow(w.squeeze(), cmap='bwr', vmin=-bounds, vmax=bounds)
                     #0 == foot, 1 == other
@@ -308,7 +371,7 @@ def label_cluster(cnn_model_path, cluster_data, data, filtered_data, save, windo
 
                     count += 1
 
-def tenseclabelling(tdms_folder, clusters_folder, cnn_model_path, save, window_width, window_height):
+def ten_sec_labelling(tdms_folder, clusters_folder, cnn_model_path, save, window_width, window_height):
 
     filenames = sorted([filename for filename in os.listdir(tdms_folder)])
 
@@ -546,6 +609,6 @@ if __name__ == '__main__':
 
     tdms_folder = f"{device}:/1000Hz Data/{window}/"
     clusters_folder = f"{device}:/Clusters/{window}/"
-    cnn_model_path = f"./models/80x120_filtered_filtered_CNN.pth"
+    cnn_model_path = f"./models/80x120_filtered_CNN.pth"
 
-    tenseclabelling(tdms_folder, clusters_folder, cnn_model_path, save, 80, 120)
+    ten_sec_labelling(tdms_folder, clusters_folder, cnn_model_path, save, 80, 120)
