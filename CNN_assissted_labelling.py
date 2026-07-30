@@ -94,10 +94,12 @@ def CNN_window_preparation(cluster_data, data, filtered_data, window_width, wind
 def label_cluster(cnn_model_path, cluster_data, data, filtered_data, save, window_width, window_height, offset = 0):
 
     windows = CNN_window_preparation(cluster_data, data, filtered_data, window_width, window_height, offset)
-    use_raw = False
+    use_raw = True
 
     window_height += 1
     window_width += 1
+
+    labelled_clusters = []
 
     if not len(windows[0]) == 0:
 
@@ -108,16 +110,21 @@ def label_cluster(cnn_model_path, cluster_data, data, filtered_data, save, windo
         temp_raw = []
         temp_filtered = []
         temp_labels = []
+        temp_clusters = []
 
-        for i, (w, f, l) in enumerate(zip(win_raw, win_filtered, labels)):
+        for i, (w, f, l, c) in enumerate(zip(win_raw, win_filtered, labels, cluster_data)):
             if np.shape(w)[0] == window_height and np.shape(w)[1] == window_width:
                 temp_raw.append(w)
                 temp_filtered.append(f)
                 temp_labels.append(l)
+                temp_clusters.append(c)
 
         win_raw = np.array(temp_raw)
         win_filtered = np.array(temp_filtered)
         labels = temp_labels
+        clusters = temp_clusters
+
+        del temp_raw, temp_filtered, temp_labels, temp_clusters
 
         win_raw_normalised = []
         win_filtered_normalised = []
@@ -138,120 +145,120 @@ def label_cluster(cnn_model_path, cluster_data, data, filtered_data, save, windo
         win_raw_normalised = np.array(win_raw_normalised)
         win_filtered_normalised = np.array(win_filtered_normalised)
 
-        stacks = []
-        for win in win_raw_normalised:
-            stack = None
-            for i in range(len(win[0])):
-                if stack is None:
-                    stack = deepcopy(win[:, i])
-                else:
-                    stack = stack + win[:, i]
-
-            stack = stack / len(win[0])
-            stacks.append(stack)
-
-        fstacks = []
-        for win in win_filtered_normalised:
-            stack = None
-            for i in range(len(win[0])):
-                if stack is None:
-                    stack = deepcopy(win[:, i])
-                else:
-                    stack = stack + win[:, i]
-
-            stack = stack / len(win[0])
-            fstacks.append(stack)
-
-        fs = 1000
-
-        spectra = []
-        for stack in stacks:
-            yf = rfft(stack)
-
-            #padding the end with 0s
-            empty = np.zeros(window_height)
-            for i in range(len(yf)):
-                empty[i] = yf[i]
-
-            spectra.append(empty)
-
-        features = []
-        for win, fwin, stack, fstack in zip(win_raw_normalised, win_filtered_normalised, stacks, fstacks):
-            s_max = np.max(win)
-            s_min = np.min(win)
-
-            fs_max = np.max(fwin)
-            fs_min = np.min(fwin)
-
-            #temporal stacked
-
-            t_mean = np.mean(stack)
-            t_std = np.std(stack)
-            t_skew = skew(stack)
-            t_kurtosis = kurtosis(stack)
-
-            ft_mean = np.mean(fstack)
-            ft_std = np.std(fstack)
-            ft_skew = skew(fstack)
-            ft_kurtosis = kurtosis(fstack)
-
-            #spectral stacked
-
-            stack20 = butter_bandpass_filter(stack, 1000, 20, -1)
-            stack100 = butter_bandpass_filter(stack, 1000, 100, -1)
-
-            N = len(stack)
-            yf = rfft(stack)
-            xf = rfftfreq(N, 1/fs)
-
-            N = len(stack20)
-            yf20 = rfft(stack20)
-            xf20 = rfftfreq(N, 1/fs)
-
-            N = len(stack100)
-            yf100 = rfft(stack100)
-            xf100 = rfftfreq(N, 1/fs)
-
-            sp_kurtosis = kurtosis(np.abs(yf))
-            sp_skew = skew(np.abs(yf))
-            sp_domFreq = xf[np.where(np.abs(yf) == np.max(np.abs(yf)))[0]][0]
-            sp_domFreq_amp = np.max(np.abs(yf))
-
-            sp_domFreq_20 = xf20[np.where(np.abs(yf20) == np.max(np.abs(yf20)))[0]][0]
-            sp_domFreq_amp_20 = np.max(np.abs(yf20))
-
-            sp_domFreq_100 = xf100[np.where(np.abs(yf100) == np.max(np.abs(yf100)))[0]][0]
-            sp_domFreq_amp_100 = np.max(np.abs(yf100))
-
-            feature = [s_max, s_min, fs_max, fs_min, t_mean, t_std, t_skew, t_kurtosis, ft_mean, ft_std, ft_skew, ft_kurtosis, sp_kurtosis, sp_skew, sp_domFreq, sp_domFreq_amp, sp_domFreq_20, sp_domFreq_amp_20, sp_domFreq_100, sp_domFreq_amp_100]
-
-            # padding the end with 0s
-            empty = np.zeros(window_height)
-            for i in range(len(feature)):
-                empty[i] = feature[i]
-
-            features.append(empty)
-
-        modified_data = []
-        if use_raw:
-
-            for win, stack, fstack, spec, feature in zip(win_raw_normalised, stacks, fstacks, spectra, features):
-                win = np.append(win, np.reshape(stack, (window_height, 1)), axis=1)
-                win = np.append(win, np.reshape(fstack, (window_height, 1)), axis=1)
-                win = np.append(win, np.reshape(spec, (window_height, 1)), axis=1)
-                win = np.append(win, np.reshape(feature, (window_height, 1)), axis=1)
-                modified_data.append(win)
-
-        else:
-
-            for win, stack, fstack, spec, feature in zip(win_filtered_normalised, stacks, fstacks, spectra, features):
-                win = np.append(win, np.reshape(stack, (window_height, 1)), axis=1)
-                win = np.append(win, np.reshape(fstack, (window_height, 1)), axis=1)
-                win = np.append(win, np.reshape(spec, (window_height, 1)), axis=1)
-                win = np.append(win, np.reshape(feature, (window_height, 1)), axis=1)
-                modified_data.append(win)
-
-        win_modified = modified_data
+        # stacks = []
+        # for win in win_raw_normalised:
+        #     stack = None
+        #     for i in range(len(win[0])):
+        #         if stack is None:
+        #             stack = deepcopy(win[:, i])
+        #         else:
+        #             stack = stack + win[:, i]
+        #
+        #     stack = stack / len(win[0])
+        #     stacks.append(stack)
+        #
+        # fstacks = []
+        # for win in win_filtered_normalised:
+        #     stack = None
+        #     for i in range(len(win[0])):
+        #         if stack is None:
+        #             stack = deepcopy(win[:, i])
+        #         else:
+        #             stack = stack + win[:, i]
+        #
+        #     stack = stack / len(win[0])
+        #     fstacks.append(stack)
+        #
+        # fs = 1000
+        #
+        # spectra = []
+        # for stack in stacks:
+        #     yf = rfft(stack)
+        #
+        #     #padding the end with 0s
+        #     empty = np.zeros(window_height)
+        #     for i in range(len(yf)):
+        #         empty[i] = yf[i]
+        #
+        #     spectra.append(empty)
+        #
+        # features = []
+        # for win, fwin, stack, fstack in zip(win_raw_normalised, win_filtered_normalised, stacks, fstacks):
+        #     s_max = np.max(win)
+        #     s_min = np.min(win)
+        #
+        #     fs_max = np.max(fwin)
+        #     fs_min = np.min(fwin)
+        #
+        #     #temporal stacked
+        #
+        #     t_mean = np.mean(stack)
+        #     t_std = np.std(stack)
+        #     t_skew = skew(stack)
+        #     t_kurtosis = kurtosis(stack)
+        #
+        #     ft_mean = np.mean(fstack)
+        #     ft_std = np.std(fstack)
+        #     ft_skew = skew(fstack)
+        #     ft_kurtosis = kurtosis(fstack)
+        #
+        #     #spectral stacked
+        #
+        #     stack20 = butter_bandpass_filter(stack, 1000, 20, -1)
+        #     stack100 = butter_bandpass_filter(stack, 1000, 100, -1)
+        #
+        #     N = len(stack)
+        #     yf = rfft(stack)
+        #     xf = rfftfreq(N, 1/fs)
+        #
+        #     N = len(stack20)
+        #     yf20 = rfft(stack20)
+        #     xf20 = rfftfreq(N, 1/fs)
+        #
+        #     N = len(stack100)
+        #     yf100 = rfft(stack100)
+        #     xf100 = rfftfreq(N, 1/fs)
+        #
+        #     sp_kurtosis = kurtosis(np.abs(yf))
+        #     sp_skew = skew(np.abs(yf))
+        #     sp_domFreq = xf[np.where(np.abs(yf) == np.max(np.abs(yf)))[0]][0]
+        #     sp_domFreq_amp = np.max(np.abs(yf))
+        #
+        #     sp_domFreq_20 = xf20[np.where(np.abs(yf20) == np.max(np.abs(yf20)))[0]][0]
+        #     sp_domFreq_amp_20 = np.max(np.abs(yf20))
+        #
+        #     sp_domFreq_100 = xf100[np.where(np.abs(yf100) == np.max(np.abs(yf100)))[0]][0]
+        #     sp_domFreq_amp_100 = np.max(np.abs(yf100))
+        #
+        #     feature = [s_max, s_min, fs_max, fs_min, t_mean, t_std, t_skew, t_kurtosis, ft_mean, ft_std, ft_skew, ft_kurtosis, sp_kurtosis, sp_skew, sp_domFreq, sp_domFreq_amp, sp_domFreq_20, sp_domFreq_amp_20, sp_domFreq_100, sp_domFreq_amp_100]
+        #
+        #     # padding the end with 0s
+        #     empty = np.zeros(window_height)
+        #     for i in range(len(feature)):
+        #         empty[i] = feature[i]
+        #
+        #     features.append(empty)
+        #
+        # modified_data = []
+        # if use_raw:
+        #
+        #     for win, stack, fstack, spec, feature in zip(win_raw_normalised, stacks, fstacks, spectra, features):
+        #         win = np.append(win, np.reshape(stack, (window_height, 1)), axis=1)
+        #         win = np.append(win, np.reshape(fstack, (window_height, 1)), axis=1)
+        #         win = np.append(win, np.reshape(spec, (window_height, 1)), axis=1)
+        #         win = np.append(win, np.reshape(feature, (window_height, 1)), axis=1)
+        #         modified_data.append(win)
+        #
+        # else:
+        #
+        #     for win, stack, fstack, spec, feature in zip(win_filtered_normalised, stacks, fstacks, spectra, features):
+        #         win = np.append(win, np.reshape(stack, (window_height, 1)), axis=1)
+        #         win = np.append(win, np.reshape(fstack, (window_height, 1)), axis=1)
+        #         win = np.append(win, np.reshape(spec, (window_height, 1)), axis=1)
+        #         win = np.append(win, np.reshape(feature, (window_height, 1)), axis=1)
+        #         modified_data.append(win)
+        #
+        # win_modified = modified_data
 
         # for stack, fstack, spec, feature in zip(stacks, fstacks, spectra, features):
         #     stack = np.reshape(stack, (height, 1))
@@ -262,10 +269,10 @@ def label_cluster(cnn_model_path, cluster_data, data, filtered_data, save, windo
         #
         # win_modified = modified_data
 
-        # if use_raw:
-        #     win_modified = win_raw
-        # else:
-        #     win_modified = win_filtered
+        if use_raw:
+            win_modified = win_raw_normalised
+        else:
+            win_modified = win_filtered_normalised
 
         # spectrograms = []
         # for stack in stacks:
@@ -290,7 +297,7 @@ def label_cluster(cnn_model_path, cluster_data, data, filtered_data, save, windo
         # reshape for pytorch
         win_modified = np.array(win_modified).astype(np.float32)
         # reshaped_raw = win_raw.reshape(-1, 1, 242, 81)
-        reshaped_modified = win_modified.reshape(-1, 1, window_height, window_width + 4)
+        reshaped_modified = win_modified.reshape(-1, 1, window_height, window_width)
         # reshaped_raw = win_raw.reshape(-1, 1, 7, 10)
 
         labels = np.array(labels)
@@ -301,7 +308,7 @@ def label_cluster(cnn_model_path, cluster_data, data, filtered_data, save, windo
 
         labels = np.array(labels)
         unique = np.unique(labels)
-        print(unique)
+        # print(unique)
 
         for i, u in enumerate(unique):
             labels[labels == u] = i
@@ -321,7 +328,6 @@ def label_cluster(cnn_model_path, cluster_data, data, filtered_data, save, windo
         # print("4. Classify and Save Windows ----------")
         train_net.eval()
 
-
         count = 0
         with torch.no_grad():
             for inputs, targets in test_loader:
@@ -331,45 +337,189 @@ def label_cluster(cnn_model_path, cluster_data, data, filtered_data, save, windo
                 for w, p in zip(inputs, predicted):
 
                     if p.item() == 0:
-                        #we ignore this as we dont need anymore footsteps
-                        print("save location footprint")
+                        #we do not label these but mark as unlabelled for parity and to make it easier to process later
+                        c = clusters[count]
+
+                        c[0] -= offset
+                        c[1] -= offset
+
+                        diffY = c[1] - c[0]
+                        diffX = c[3] - c[2]
+
+                        labelled_cluster = [diffY, diffX, "unlabelled"]
+                        print(labelled_cluster)
+                        labelled_clusters.append(labelled_cluster)
+
+                        # fig1 = plt.figure()
+                        # img1 = plt.imshow(w.squeeze(), cmap='bwr')
+                        # #0 == foot, 1 == other
+                        # plt.title(f"label = {p}")
+                        # fig1.colorbar(img1, label= "Nano Strain per Second [nm/m/s]")
+                        # fig1.savefig(f"./images/foot/{save}-{count}.png")
+                        # plt.close()
+                        #
+                        # bounds = 1000
+                        # fig1 = plt.figure()
+                        # img1 = plt.imshow(win_raw[count], cmap='bwr', vmin=-bounds, vmax=bounds)
+                        # #0 == foot, 1 == other
+                        # plt.title(f"original")
+                        # fig1.colorbar(img1, label= "Nano Strain per Second [nm/m/s]")
+                        # fig1.savefig(f"./images/foot/{save}-{count}-raw.png")
+                        # plt.close()
+                        #
+                        # bounds = 1000
+                        # fig1 = plt.figure()
+                        # img1 = plt.imshow(win_filtered[count], cmap='bwr', vmin=-bounds, vmax=bounds)
+                        # #0 == foot, 1 == other
+                        # plt.title(f"original")
+                        # fig1.colorbar(img1, label= "Nano Strain per Second [nm/m/s]")
+                        # fig1.savefig(f"./images/foot/{save}-{count}-filtered.png")
+                        # plt.close()
+
                     else:
                         #this is the data we want to label
-                        print("save location other")
+                        # print("save location other")
 
-                    bounds = 1000
-                    fig1 = plt.figure()
-                    img1 = plt.imshow(data, cmap='bwr', vmin=-bounds, vmax=bounds)
-                    #0 == foot, 1 == other
-                    plt.title(f"original")
-                    fig1.colorbar(img1, label= "Nano Strain per Second [nm/m/s]")
-                    fig1.show()
+                        # fig1 = plt.figure()
+                        # img1 = plt.imshow(w.squeeze(), cmap='bwr')
+                        # #0 == foot, 1 == other
+                        # plt.title(f"label = {p}")
+                        # fig1.colorbar(img1, label= "Nano Strain per Second [nm/m/s]")
+                        # fig1.savefig(f"./images/other/{save}-{count}.png")
+                        # plt.close()
+                        #
+                        # bounds = 1000
+                        # fig1 = plt.figure()
+                        # img1 = plt.imshow(win_raw[count], cmap='bwr', vmin=-bounds, vmax=bounds)
+                        # #0 == foot, 1 == other
+                        # plt.title(f"original")
+                        # fig1.colorbar(img1, label= "Nano Strain per Second [nm/m/s]")
+                        # fig1.savefig(f"./images/other/{save}-{count}-raw.png")
+                        # plt.close()
+                        #
+                        # bounds = 1000
+                        # fig1 = plt.figure()
+                        # img1 = plt.imshow(win_filtered[count], cmap='bwr', vmin=-bounds, vmax=bounds)
+                        # #0 == foot, 1 == other
+                        # plt.title(f"original")
+                        # fig1.colorbar(img1, label= "Nano Strain per Second [nm/m/s]")
+                        # fig1.savefig(f"./images/other/{save}-{count}-filtered.png")
+                        # plt.close()
 
-                    bounds = 0.1
-                    fig1 = plt.figure()
-                    img1 = plt.imshow(w.squeeze(), cmap='bwr', vmin=-bounds, vmax=bounds)
-                    #0 == foot, 1 == other
-                    plt.title(f"label = {p}")
-                    fig1.colorbar(img1, label= "Nano Strain per Second [nm/m/s]")
-                    fig1.show()
+#-----------------------------------------------------------------------------------------------------------------------
+                        c = clusters[count]
+                        windowData = []
+                        fWindowData = []
 
-                    bounds = 1000
-                    fig1 = plt.figure()
-                    img1 = plt.imshow(win_raw[count], cmap='bwr', vmin=-bounds, vmax=bounds)
-                    #0 == foot, 1 == other
-                    plt.title(f"original")
-                    fig1.colorbar(img1, label= "Nano Strain per Second [nm/m/s]")
-                    fig1.show()
+                        c[0] -= offset
+                        c[1] -= offset
 
-                    bounds = 1000
-                    fig1 = plt.figure()
-                    img1 = plt.imshow(win_filtered[count], cmap='bwr', vmin=-bounds, vmax=bounds)
-                    #0 == foot, 1 == other
-                    plt.title(f"original")
-                    fig1.colorbar(img1, label= "Nano Strain per Second [nm/m/s]")
-                    fig1.show()
+                        diffY = c[1] - c[0]
+                        diffX = c[3] - c[2]
+
+                        if diffY > 100:
+                            minY = c[0] - 100
+                            if minY < 0:
+                                minY = 0
+                            maxY = c[1] + 100
+                            ylen = 100
+                        else:
+                            minY = c[0] - 50
+                            if minY < 0:
+                                minY = 0
+                            maxY = c[1] + 50
+                            ylen = 50
+
+                        if diffX > 100:
+                            minX = c[2] - 100
+                            maxX = c[3] + 100
+                            xlen = 100
+                        else:
+                            minX = c[2] - 50
+                            maxX = c[3] + 50
+                            xlen = 50
+
+
+                        windowData.append(data[minY:maxY, minX: maxX])
+                        fWindowData.append(filtered_data[minY:maxY, minX: maxX])
+
+                        bounds = 1000
+                        fig, ax = plt.subplots()
+                        img1 = ax.imshow(data, aspect='auto', interpolation='none', vmin=-bounds, vmax=bounds)
+                        # ax.set_xlim(1200, 1500)
+                        plt.ylabel('Time (seconds)')
+                        img1.set_cmap(plt.cm.get_cmap('bwr'))
+                        plt.show(block=False)
+                        plt.close()
+
+                        bounds = 1000
+                        fig, ax = plt.subplots()
+                        img1 = ax.imshow(data, aspect='auto', interpolation='none', vmin=-bounds, vmax=bounds)
+                        # ax.set_xlim(1200, 1500)
+                        plt.ylabel('Time (seconds)')
+                        img1.set_cmap(plt.cm.get_cmap('bwr'))
+
+                        rect = patches.Rectangle((c[2], c[0]), c[3] - c[2], (c[1] - c[0]), linewidth=2, edgecolor="black",
+                                                 facecolor='none')
+                        ax.add_patch(rect)
+                        plt.show(block=False)
+                        plt.close()
+
+                        bounds = 1000
+                        fig, ax = plt.subplots()
+                        img1 = ax.imshow(windowData[0], aspect='auto', interpolation='none', vmin=-bounds, vmax=bounds)
+                        plt.ylabel('Time (milliseconds)')
+                        plt.title(f'Window {count}')
+                        img1.set_cmap(plt.colormaps['bwr'])
+
+                        rect = patches.Rectangle(((int(xlen - int(diffX)/2)), int(ylen - int(diffY)/2)), c[3] - c[2], (c[1] - c[0]), linewidth=2,
+                                                 edgecolor="black", facecolor='none')
+
+                        ax.add_patch(rect)
+
+                        plt.show()
+                        plt.close()
+
+                        bounds = 1000
+                        fig, ax = plt.subplots()
+                        img1 = ax.imshow(fWindowData[0], aspect='auto', interpolation='none', vmin=-bounds, vmax=bounds)
+                        plt.ylabel('Time (milliseconds)')
+                        plt.title(f'Window {count}')
+                        img1.set_cmap(plt.colormaps['bwr'])
+
+                        rect = patches.Rectangle(((int(xlen - int(diffX)/2)), int(ylen - int(diffY)/2)), c[3] - c[2], (c[1] - c[0]), linewidth=2,
+                                                 edgecolor="black", facecolor='none')
+
+                        ax.add_patch(rect)
+
+                        plt.show()
+                        plt.close()
+
+                        bounds = 1000
+                        fig, ax = plt.subplots()
+                        img1 = ax.imshow(fWindowData[0], aspect='auto', interpolation='none', vmin=-bounds, vmax=bounds)
+                        plt.ylabel('Time (milliseconds)')
+                        plt.title(f'Window {count}')
+                        img1.set_cmap(plt.colormaps['bwr'])
+
+                        plt.show()
+                        plt.close()
+
+                        labelled_cluster = [diffY, diffX]
+
+                        print(labelled_cluster)
+                        label = input("Event Type>>>")
+
+                        labelled_cluster.append(label)
+                        labelled_clusters.append(labelled_cluster)
+                        print(labelled_cluster)
+                        # print("i wanna break here")
 
                     count += 1
+
+    # print("i wanna break here")
+    with open(f"{save}", "wb") as fp:  # Pickling
+        pickle.dump(labelled_clusters, fp)
 
 def ten_sec_labelling(tdms_folder, clusters_folder, cnn_model_path, save, window_width, window_height):
 
@@ -395,7 +545,7 @@ def ten_sec_labelling(tdms_folder, clusters_folder, cnn_model_path, save, window
 
                 cluster_data = cluster_association(cluster_data, 0.25, 40, 1000, -1, 100, -1, 1000)
 
-                label_cluster(cnn_model_path, cluster_data, data, filtered_data, f"{save}-{file_number}", window_width, window_height)
+                label_cluster(cnn_model_path, cluster_data, data, filtered_data, f"{save}{filenames[file_number]}", window_width, window_height)
 
             else:
 
@@ -434,7 +584,7 @@ def ten_sec_labelling(tdms_folder, clusters_folder, cnn_model_path, save, window
 
                 cluster_data = cluster_association(cluster_data, 0.25, 40, 1000, -1, 100, -1, 1000)
 
-                label_cluster(cnn_model_path, cluster_data, combined_data, combined_filtered_data, f"{save}-{file_number}", window_width, window_height, offset=20)
+                label_cluster(cnn_model_path, cluster_data, combined_data, combined_filtered_data, f"{save}{filenames[file_number]}", window_width, window_height, offset=20)
 
             prior_data = data
             prior_fdata = filtered_data
@@ -603,12 +753,12 @@ def ten_sec_labelling(tdms_folder, clusters_folder, cnn_model_path, save, window
 
 if __name__ == '__main__':
 
-    device = "G"
+    device = "G:"
     window = "NDay"
-    save = F"testing"
+    save = F"./images/"
 
-    tdms_folder = f"{device}:/1000Hz Data/{window}/"
-    clusters_folder = f"{device}:/Clusters/{window}/"
-    cnn_model_path = f"./models/80x120_filtered_CNN.pth"
+    tdms_folder = f"{device}/1000Hz Data/{window}/"
+    clusters_folder = f"{device}/New Data/NovemberSanity/Clusters/"
+    cnn_model_path = f"./models/80x120_raw_CNN.pth"
 
     ten_sec_labelling(tdms_folder, clusters_folder, cnn_model_path, save, 80, 120)

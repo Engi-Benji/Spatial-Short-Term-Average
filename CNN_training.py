@@ -95,7 +95,7 @@ if __name__ == '__main__':
     num_epochs = 50
     width = 80
     height = 120
-    use_raw = False
+    use_raw = True
 
     root_folder = f"G:/CNN Formatted Data - {width} x {height}"
     model_save = f"./models/{width}x{height}_{'raw' if use_raw else 'filtered'}_CNN.pth"
@@ -221,26 +221,26 @@ if __name__ == '__main__':
 
         features.append(empty)
 
-    modified_data = []
-    if use_raw:
-
-        for win, stack, fstack, spec, feature in zip(win_raw_normalised, stacks, fstacks, spectra, features):
-            win = np.append(win, np.reshape(stack, (height, 1)), axis=1)
-            win = np.append(win, np.reshape(fstack, (height, 1)), axis=1)
-            win = np.append(win, np.reshape(spec, (height, 1)), axis=1)
-            win = np.append(win, np.reshape(feature, (height, 1)), axis=1)
-            modified_data.append(win)
-
-    else:
-
-        for win, stack, fstack, spec, feature in zip(win_filtered_normalised, stacks, fstacks, spectra, features):
-            win = np.append(win, np.reshape(stack, (height, 1)), axis=1)
-            win = np.append(win, np.reshape(fstack, (height, 1)), axis=1)
-            win = np.append(win, np.reshape(spec, (height, 1)), axis=1)
-            win = np.append(win, np.reshape(feature, (height, 1)), axis=1)
-            modified_data.append(win)
-
-    win_modified = modified_data
+    # modified_data = []
+    # if use_raw:
+    #
+    #     for win, stack, fstack, spec, feature in zip(win_raw_normalised, stacks, fstacks, spectra, features):
+    #         win = np.append(win, np.reshape(stack, (height, 1)), axis=1)
+    #         win = np.append(win, np.reshape(fstack, (height, 1)), axis=1)
+    #         win = np.append(win, np.reshape(spec, (height, 1)), axis=1)
+    #         win = np.append(win, np.reshape(feature, (height, 1)), axis=1)
+    #         modified_data.append(win)
+    #
+    # else:
+    #
+    #     for win, stack, fstack, spec, feature in zip(win_filtered_normalised, stacks, fstacks, spectra, features):
+    #         win = np.append(win, np.reshape(stack, (height, 1)), axis=1)
+    #         win = np.append(win, np.reshape(fstack, (height, 1)), axis=1)
+    #         win = np.append(win, np.reshape(spec, (height, 1)), axis=1)
+    #         win = np.append(win, np.reshape(feature, (height, 1)), axis=1)
+    #         modified_data.append(win)
+    #
+    # win_modified = modified_data
 
     # for stack, fstack, spec, feature in zip(stacks, fstacks, spectra, features):
     #     stack = np.reshape(stack, (height, 1))
@@ -251,10 +251,10 @@ if __name__ == '__main__':
     #
     # win_modified = modified_data
 
-    # if use_raw:
-    #     win_modified = win_raw
-    # else:
-    #     win_modified = win_filtered
+    if use_raw:
+        win_modified = win_raw_normalised
+    else:
+        win_modified = win_filtered_normalised
 
     # spectrograms = []
     # for stack in stacks:
@@ -280,7 +280,7 @@ if __name__ == '__main__':
     print('     2. Reshaping Data')
     win_modified = np.array(win_modified).astype(np.float32)
     # reshaped_raw = win_raw.reshape(-1, 1, 242, 81)
-    reshaped_modified = win_modified.reshape(-1, 1, height, width + 4)
+    reshaped_modified = win_modified.reshape(-1, 1, height, width)
     # reshaped_raw = win_raw.reshape(-1, 1, 7, 10)
 
     labels = np.array(labels)
@@ -437,7 +437,7 @@ if __name__ == '__main__':
 
     accuracy = 100 * correct / total
 
-    print(f"  Test Accuracy: {accuracy}%")
+    print(f"  Test Accuracy: {accuracy}")
     print(" |==f==|==0==|")
     print(f"f| {footTrue} | {footFalse} |")
     print(" |=====|=====|")
