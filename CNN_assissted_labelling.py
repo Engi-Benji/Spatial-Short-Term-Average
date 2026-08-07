@@ -538,53 +538,54 @@ def ten_sec_labelling(tdms_folder, clusters_folder, cnn_model_path, save, window
             data = get_data(tdms)
             filtered_data = filter_waterfall(data, 1000, 100)
 
-            if file_number == 0:
+            if file_number >= 231:
+                if file_number == 0:
 
-                with open(f"{clusters_folder}/{clusters_array[file_number]}", "rb") as fp:   # Unpickling
-                    cluster_data = pickle.load(fp)
+                    with open(f"{clusters_folder}/{clusters_array[file_number]}", "rb") as fp:   # Unpickling
+                        cluster_data = pickle.load(fp)
 
-                cluster_data = cluster_association(cluster_data, 0.25, 40, 1000, -1, 100, -1, 1000)
+                    cluster_data = cluster_association(cluster_data, 0.25, 40, 1000, -1, 100, -1, 1000)
 
-                label_cluster(cnn_model_path, cluster_data, data, filtered_data, f"{save}{filenames[file_number]}", window_width, window_height)
+                    label_cluster(cnn_model_path, cluster_data, data, filtered_data, f"{save}{filenames[file_number]}", window_width, window_height)
 
-            else:
+                else:
 
-                combined_data = np.append(prior_data, data, axis=0)
-                combined_filtered_data = np.append(prior_fdata, filtered_data, axis=0)
+                    combined_data = np.append(prior_data, data, axis=0)
+                    combined_filtered_data = np.append(prior_fdata, filtered_data, axis=0)
 
-                clust_num = ((file_number + 1) * 2) - 1
+                    clust_num = ((file_number + 1) * 2) - 1
 
-                with open(f"{clusters_folder}/{clusters_array[clust_num - 3]}", "rb") as fp:   # Unpickling
-                    prior_cluster_data = pickle.load(fp)
+                    with open(f"{clusters_folder}/{clusters_array[clust_num - 3]}", "rb") as fp:   # Unpickling
+                        prior_cluster_data = pickle.load(fp)
 
-                with open(f"{clusters_folder}/{clusters_array[clust_num - 2]}", "rb") as fp:   # Unpickling
-                    overlap_cluster_data = pickle.load(fp)
+                    with open(f"{clusters_folder}/{clusters_array[clust_num - 2]}", "rb") as fp:   # Unpickling
+                        overlap_cluster_data = pickle.load(fp)
 
-                with open(f"{clusters_folder}/{clusters_array[clust_num - 1]}", "rb") as fp:   # Unpickling
-                    cluster_data = pickle.load(fp)
+                    with open(f"{clusters_folder}/{clusters_array[clust_num - 1]}", "rb") as fp:   # Unpickling
+                        cluster_data = pickle.load(fp)
 
 
-                combined = []
-                for c in cluster_data:
-                    combined.append([c[0] + 10000, c[1] + 10000, c[2], c[3], c[4]])
+                    combined = []
+                    for c in cluster_data:
+                        combined.append([c[0] + 10000, c[1] + 10000, c[2], c[3], c[4]])
 
-                combined.extend(x for x in overlap_cluster_data if x not in combined)
-                combined = (x for x in combined if x not in prior_cluster_data)
+                    combined.extend(x for x in overlap_cluster_data if x not in combined)
+                    combined = (x for x in combined if x not in prior_cluster_data)
 
-                cluster_data = combined
-                del combined
+                    cluster_data = combined
+                    del combined
 
-                temp = []
-                for c in cluster_data:
-                    if 20 <= c[3] - c[2] < 100 and c[1] != c[0] > 0:
-                        temp.append(c)
+                    temp = []
+                    for c in cluster_data:
+                        if 20 <= c[3] - c[2] < 100 and c[1] != c[0] > 0:
+                            temp.append(c)
 
-                cluster_data = temp
-                del temp
+                    cluster_data = temp
+                    del temp
 
-                cluster_data = cluster_association(cluster_data, 0.25, 40, 1000, -1, 100, -1, 1000)
+                    cluster_data = cluster_association(cluster_data, 0.25, 40, 1000, -1, 100, -1, 1000)
 
-                label_cluster(cnn_model_path, cluster_data, combined_data, combined_filtered_data, f"{save}{filenames[file_number]}", window_width, window_height, offset=20)
+                    label_cluster(cnn_model_path, cluster_data, combined_data, combined_filtered_data, f"{save}{filenames[file_number]}", window_width, window_height, offset=20)
 
             prior_data = data
             prior_fdata = filtered_data
@@ -755,10 +756,10 @@ if __name__ == '__main__':
 
     device = "G:"
     window = "NDay"
-    save = F"./images/"
+    save = F"{device}/New Data/NovemberNightNew/Assisted Labelled Data/"
 
-    tdms_folder = f"{device}/1000Hz Data/{window}/"
-    clusters_folder = f"{device}/New Data/NovemberSanity/Clusters/"
+    tdms_folder = f"{device}/New Data/NovemberNightNew/NightNew/"
+    clusters_folder = f"{device}/New Data/NovemberNightNew/Clusters/"
     cnn_model_path = f"./models/80x120_raw_CNN.pth"
 
     ten_sec_labelling(tdms_folder, clusters_folder, cnn_model_path, save, 80, 120)
