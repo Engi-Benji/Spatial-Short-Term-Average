@@ -1,6 +1,45 @@
 import os
 import pickle
 from clustering import labelled_cluster_association, cluster_association
+import numpy as np
+
+def labelled_data_loading(root_folder, width, height):
+    #load in the data
+    folders = sorted(os.listdir(root_folder), reverse=False)
+
+    labels = []
+    win_raw = []
+    win_filtered = []
+
+    for folder in folders:
+
+        windows = sorted(os.listdir(f"{root_folder}/{folder}"))
+
+        for window in windows:
+            with (open(f"{root_folder}/{folder}/{window}", "rb") as fp):  # Unpickling
+                window_import = pickle.load(fp)
+
+                labels.append(window_import[0])
+                win_raw.append(np.array(window_import[1]))
+                win_filtered.append(np.array(window_import[2]))
+
+    #remove irregular sized file
+    temp_raw = []
+    temp_filtered = []
+    temp_labels = []
+
+    for (w, f, l) in zip(win_raw, win_filtered, labels):
+        if np.shape(w)[0] == height and np.shape(w)[1] == width:
+            temp_raw.append(w)
+            temp_filtered.append(f)
+            temp_labels.append(l)
+
+    win_raw = np.array(temp_raw)
+    win_filtered = np.array(temp_filtered)
+    labels = temp_labels
+
+    print(f"Total Samples: {len(win_raw)}")
+    return win_raw, win_filtered, labels
 
 def associated_labelling(root_folder):
 
