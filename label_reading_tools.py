@@ -3,7 +3,7 @@ import pickle
 from clustering import labelled_cluster_association, cluster_association
 import numpy as np
 
-def labelled_data_loading(root_folder, width, height):
+def labelled_data_loading(root_folder, width, height, wanted_labels):
     #load in the data
     folders = sorted(os.listdir(root_folder), reverse=False)
 
@@ -30,9 +30,20 @@ def labelled_data_loading(root_folder, width, height):
 
     for (w, f, l) in zip(win_raw, win_filtered, labels):
         if np.shape(w)[0] == height and np.shape(w)[1] == width:
-            temp_raw.append(w)
-            temp_filtered.append(f)
-            temp_labels.append(l)
+
+            l = l.lower()
+            l = ''.join(c for c in l if c.isalpha())
+
+            if l not in ["c", "p", "e", "n", "u", "f"]:
+                l = 'u'
+
+            if l in wanted_labels:
+                temp_raw.append(w)
+                temp_filtered.append(f)
+                temp_labels.append(l)
+
+
+
 
     win_raw = np.array(temp_raw)
     win_filtered = np.array(temp_filtered)
