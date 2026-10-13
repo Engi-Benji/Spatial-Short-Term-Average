@@ -419,7 +419,7 @@ def label_cluster(cnn_model_path, cluster_data, data, filtered_data, save, windo
                         diffY = c[1] - c[0]
                         diffX = c[3] - c[2]
 
-                        if 6110 < c[2] < 6170 or 6110 < c[3] < 6170:
+                        if max(c[2], c[3]) > 6110 and min(c[2], c[3]) < 6170:
                             labelled_cluster = [diffY, diffX, "unlabelled"]
                             print(f'{labelled_cluster} - exposure section')
                             labelled_clusters.append(labelled_cluster)
@@ -604,7 +604,6 @@ def ten_sec_labelling(tdms_folder, clusters_folder, cnn_model_path, save, window
             prior_fdata = filtered_data
             pbar.update(1)
 
-
 def thirty_sec_labelling(tdms_folder, clusters_folder, cnn_model_path, save, window_width, window_height):
 
     filenames = sorted([filename for filename in os.listdir(tdms_folder)])
@@ -627,7 +626,7 @@ def thirty_sec_labelling(tdms_folder, clusters_folder, cnn_model_path, save, win
             combined = []
             # for if i return to the long feb period
             # if file_number >= 61:
-            if file_number >= 95:
+            if file_number >= 0:
                 if file_number == 0:
 
                     for j in range(5):
@@ -653,6 +652,7 @@ def thirty_sec_labelling(tdms_folder, clusters_folder, cnn_model_path, save, win
                     del temp
 
                     cluster_data = cluster_association(cluster_data, 0.25, 40, 1000, -1, 100, -1, 1000)
+                    # if file_number >= 61:
                     label_cluster(cnn_model_path, cluster_data, data, filtered_data, f"{save}{filenames[file_number]}", window_width, window_height)
 
                 else:
@@ -693,7 +693,9 @@ def thirty_sec_labelling(tdms_folder, clusters_folder, cnn_model_path, save, win
 
                     cluster_data = cluster_association(cluster_data, 0.25, 40, 1000, -1, 100, -1, 1000)
 
-                    label_cluster(cnn_model_path, cluster_data, combined_data, combined_filtered_data, f"{save}{filenames[file_number]}", window_width, window_height, offset=20)
+
+                # if file_number >= 61:
+                label_cluster(cnn_model_path, cluster_data, combined_data, combined_filtered_data, f"{save}{filenames[file_number]}", window_width, window_height, offset=20)
 
             prior_data = data[19999::]
             prior_fdata = filtered_data[19999::]
@@ -705,10 +707,10 @@ if __name__ == '__main__':
 
     device = "G:"
     window = "NDay"
-    save = F"{device}/New Data/FebruaryNightNew/Assisted Labelled Data/"
+    save = F"{device}/New Data/FebruaryDayNew/Assisted Labelled Data/"
 
-    tdms_folder = f"{device}/New Data/FebruaryNightNew/NightNew/"
-    clusters_folder = f"{device}/New Data/FebruaryNightNew/Clusters/"
+    tdms_folder = f"{device}/New Data/FebruaryDayNew/DayNew/"
+    clusters_folder = f"{device}/New Data/FebruaryDayNew/Clusters/"
     cnn_model_path = f"./models/80x120_raw_CNN.pth"
 
     thirty_sec_labelling(tdms_folder, clusters_folder, cnn_model_path, save, 80, 120)

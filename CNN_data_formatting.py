@@ -1,4 +1,5 @@
 import pickle
+from copy import deepcopy
 
 from TDMS_Batch_Reader import *
 from TDMS_Utilities import get_data
@@ -790,13 +791,6 @@ def new_labelled_cnn_event_windows_10(tdms_folder, labels_folder, clusters_folde
 
     clusters_array = sorted(os.listdir(clusters_folder))
 
-    total_clusters = 0
-
-    # soil = True
-    # foot = True
-    # nano = True
-    # fade = True
-    # noise = True
     with tqdm(total=len(tdms_array)) as pbar:
         for file_number, tdms in enumerate(tdms_array):
 
@@ -812,121 +806,42 @@ def new_labelled_cnn_event_windows_10(tdms_folder, labels_folder, clusters_folde
 
                 cluster_data = cluster_association(cluster_data, 0.25, 40, 1000, -1, 100, -1, 1000)
 
-                if not len(cluster_data) == len(label_data):
-                    print(clusters_array[file_number])
-                    print(label_array[file_number])
-                    print(len(cluster_data))
-                    print(len(label_data))
+                filtered_cluster_data = []
+                for cluster in cluster_data:
+                    #time, channel, point count
 
-                # for event_number, (cluster, label) in enumerate(zip(cluster_data, label_data)):
-                #     #time, channel, point count
+                    #offset needed when looking at files beyond the first as an extra 20 ms is added to the start when processing to allow for the full file to be processed and this needs to be removed
+                    sample_midp = cluster[0] + int((cluster[1] - cluster[0])/2)
 
-                #     sample_midp = cluster[0] + int((cluster[1] - cluster[0])/2)
-                #     channel_midp = cluster[2] + int((cluster[3] - cluster[2])/2)
+                    if not (sample_midp - 60 < 0 or sample_midp + 60 > 20000):
+                        filtered_cluster_data.append(cluster)
 
-                #     #TDMS chan chan samp samp
-                #     w = get_data(tdms, (channel_midp - int(window_width/2)), (channel_midp + int(window_width/2)), (sample_midp - int(window_height/2)), (sample_midp + int(window_height/2)))
-                #     fw = filter_waterfall(w, 1000, 100, -1)
+                for event_number, (cluster, label) in enumerate(zip(filtered_cluster_data, label_data)):
+                    #time, channel, point count
 
-                #     # if label == 'c' and soil:
-                #     #     soil = False
-                #     #
-                #     #     bounds = 1000
-                #     #     fig, ax = plt.subplots()
-                #     #     img1 = ax.imshow(w, interpolation='none', vmin=-bounds, vmax=bounds)
-                #     #     img1.set_cmap(plt.colormaps['bwr'])
-                #     #     plt.show()
-                #     #     plt.close()
-                #     #
-                #     #     bounds = 1000
-                #     #     fig, ax = plt.subplots()
-                #     #     img1 = ax.imshow(fw, interpolation='none', vmin=-bounds, vmax=bounds)
-                #     #     img1.set_cmap(plt.colormaps['bwr'])
-                #     #     plt.show()
-                #     #     plt.close()
-                #     #
-                #     #     print("soil")
-                #     #
-                #     # elif label == 'p' and nano:
-                #     #     nano = False
-                #     #
-                #     #     bounds = 1000
-                #     #     fig, ax = plt.subplots()
-                #     #     img1 = ax.imshow(w, interpolation='none', vmin=-bounds, vmax=bounds)
-                #     #     img1.set_cmap(plt.colormaps['bwr'])
-                #     #     plt.show()
-                #     #     plt.close()
-                #     #
-                #     #     bounds = 1000
-                #     #     fig, ax = plt.subplots()
-                #     #     img1 = ax.imshow(fw, interpolation='none', vmin=-bounds, vmax=bounds)
-                #     #     img1.set_cmap(plt.colormaps['bwr'])
-                #     #     plt.show()
-                #     #     plt.close()
-                #     #
-                #     #     print("nano")
-                #     #
-                #     # elif label == 'f' and foot:
-                #     #     foot = False
-                #     #
-                #     #     bounds = 1000
-                #     #     fig, ax = plt.subplots()
-                #     #     img1 = ax.imshow(w, interpolation='none', vmin=-bounds, vmax=bounds)
-                #     #     img1.set_cmap(plt.colormaps['bwr'])
-                #     #     plt.show()
-                #     #     plt.close()
-                #     #
-                #     #     bounds = 1000
-                #     #     fig, ax = plt.subplots()
-                #     #     img1 = ax.imshow(fw, interpolation='none', vmin=-bounds, vmax=bounds)
-                #     #     img1.set_cmap(plt.colormaps['bwr'])
-                #     #     plt.show()
-                #     #     plt.close()
-                #     #
-                #     #     print("foot")
-                #     #
-                #     # elif label == 'e' and fade:
-                #     #     fade = False
-                #     #
-                #     #     bounds = 1000
-                #     #     fig, ax = plt.subplots()
-                #     #     img1 = ax.imshow(w, interpolation='none', vmin=-bounds, vmax=bounds)
-                #     #     img1.set_cmap(plt.colormaps['bwr'])
-                #     #     plt.show()
-                #     #     plt.close()
-                #     #
-                #     #     bounds = 1000
-                #     #     fig, ax = plt.subplots()
-                #     #     img1 = ax.imshow(fw, interpolation='none', vmin=-bounds, vmax=bounds)
-                #     #     img1.set_cmap(plt.colormaps['bwr'])
-                #     #     plt.show()
-                #     #     plt.close()
-                #     #
-                #     #     print("fade")
-                #     #
-                #     # elif label == 'n' and noise:
-                #     #     noise = False
-                #     #
-                #     #     bounds = 1000
-                #     #     fig, ax = plt.subplots()
-                #     #     img1 = ax.imshow(w, interpolation='none', vmin=-bounds, vmax=bounds)
-                #     #     img1.set_cmap(plt.colormaps['bwr'])
-                #     #     plt.show()
-                #     #     plt.close()
-                #     #
-                #     #     bounds = 1000
-                #     #     fig, ax = plt.subplots()
-                #     #     img1 = ax.imshow(fw, interpolation='none', vmin=-bounds, vmax=bounds)
-                #     #     img1.set_cmap(plt.colormaps['bwr'])
-                #     #     plt.show()
-                #     #     plt.close()
-                #     #
-                #     #     print("noise")
+                    sample_midp = cluster[0] + int((cluster[1] - cluster[0])/2)
+                    channel_midp = cluster[2] + int((cluster[3] - cluster[2])/2)
 
-                #     export = [label, w, fw]
+                    #TDMS chan chan samp samp
+                    w = get_data(tdms, (channel_midp - int(window_width/2)), (channel_midp + int(window_width/2)), (sample_midp - int(window_height/2)), (sample_midp + int(window_height/2)))
+                    fw = filter_waterfall(w, 1000, 100, -1)
 
-                #     with open(f"{save}/{label}-{event_number}-{filenames[file_number]}", "wb") as fp:  # Pickling
-                #         pickle.dump(export, fp)
+                    # fig1 = plt.figure()
+                    # img1 = plt.imshow(w, cmap='bwr', vmin=-1000, vmax=1000)
+                    # plt.title(f'{label[2]}')
+                    # fig1.show()
+                    #
+                    # fig1 = plt.figure()
+                    # img1 = plt.imshow(fw, cmap='bwr', vmin=-1000, vmax=1000)
+                    # plt.title(f'{label[2]}')
+                    # fig1.show()
+
+                    label = ''.join(e for e in label[2] if e.isalnum())
+                    export = [label, w, fw]
+
+                    with open(f"{save}/{label}-{event_number}-{filenames[file_number]}", "wb") as fp:  # Pickling
+                        pickle.dump(export, fp)
+
             else:
 
                 #tdms_data = np.append(getData(tdms_array[file_number - 1]), getData(tdms), axis=0)
@@ -966,148 +881,244 @@ def new_labelled_cnn_event_windows_10(tdms_folder, labels_folder, clusters_folde
 
                 cluster_data = cluster_association(cluster_data, 0.25, 40, 1000, -1, 100, -1, 1000)
 
-                if not len(cluster_data) == len(label_data):
-                                print(clusters_array[clust_num - 1])
-                                print(label_array[file_number])
-                                print(len(cluster_data))
-                                print(len(label_data))
-                                print(cluster_data)
-                                print(label_data)
-                                sys.exit()
+                filtered_cluster_data = []
+                for cluster in cluster_data:
+                    #time, channel, point count
+
+                    #offset needed when looking at files beyond the first as an extra 20 ms is added to the start when processing to allow for the full file to be processed
+                    sample_midp = cluster[0] + int((cluster[1] - cluster[0])/2) - 20
+
+                    if not (sample_midp - 60 < 0 or sample_midp + 60 > 20000):
+                        filtered_cluster_data.append(cluster)
+
+                for event_number, (cluster, label) in enumerate(zip(filtered_cluster_data, label_data)):
+                    #time, channel, point count
+
+                    sample_midp = cluster[0] + int((cluster[1] - cluster[0])/2) - 20
+                    channel_midp = cluster[2] + int((cluster[3] - cluster[2])/2)
 
 
-                # for event_number, (cluster, label) in enumerate(zip(cluster_data, label_data)):
-                #     #time, channel, point count
+                    if (sample_midp - int(window_height/2)) > 9999:
+                        #second file
+                        w = get_data(tdms_array[file_number], (channel_midp - int(window_width/2)), (channel_midp + int(window_width/2)), (sample_midp - int(window_height/2)) - 10000, (sample_midp + int(window_height/2)) - 10000)
 
-                #     sample_midp = cluster[0] + int((cluster[1] - cluster[0])/2) - 20
-                #     channel_midp = cluster[2] + int((cluster[3] - cluster[2])/2)
+                    elif (sample_midp + int(window_height/2)) < 10000:
+                        #first file
+                        w = get_data(tdms_array[file_number - 1], (channel_midp - int(window_width/2)), (channel_midp + int(window_width/2)), (sample_midp - int(window_height/2)), (sample_midp + int(window_height/2)))
 
+                    else:
+                        #in the overlap
+                        pt1 = get_data(tdms_array[file_number-1], (channel_midp - int(window_width/2)), (channel_midp + int(window_width/2)), first_sample = (sample_midp - int(window_height/2)))
 
-                #     if (sample_midp - int(window_height/2)) > 9999:
-                #         #second file
-                #         w = get_data(tdms_array[file_number], (channel_midp - int(window_width/2)), (channel_midp + int(window_width/2)), (sample_midp - int(window_height/2)) - 10000, (sample_midp + int(window_height/2)) - 10000)
+                        pt2 = get_data(tdms_array[file_number], (channel_midp - int(window_width/2)), (channel_midp + int(window_width/2)), last_sample = (sample_midp + int(window_height/2))-10000)
 
-                #     elif (sample_midp + int(window_height/2)) < 10000:
-                #         #first file
-                #         w = get_data(tdms_array[file_number - 1], (channel_midp - int(window_width/2)), (channel_midp + int(window_width/2)), (sample_midp - int(window_height/2)), (sample_midp + int(window_height/2)))
+                        w = np.append(pt1, pt2, axis=0)
+                        del pt1, pt2
 
-                #     else:
-                #         #in the overlap
-                #         pt1 = get_data(tdms_array[file_number-1], (channel_midp - int(window_width/2)), (channel_midp + int(window_width/2)), first_sample = (sample_midp - int(window_height/2)))
+                    fw = filter_waterfall(w, 1000, 100, -1)
 
-                #         pt2 = get_data(tdms_array[file_number], (channel_midp - int(window_width/2)), (channel_midp + int(window_width/2)), last_sample = (sample_midp + int(window_height/2))-10000)
+                    # fig1 = plt.figure()
+                    # img1 = plt.imshow(w, cmap='bwr', vmin=-1000, vmax=1000)
+                    # plt.title(f'{label[2]}')
+                    # fig1.show()
+                    #
+                    # fig1 = plt.figure()
+                    # img1 = plt.imshow(fw, cmap='bwr', vmin=-1000, vmax=1000)
+                    # plt.title(f'{label[2]}')
+                    # fig1.show()
 
-                #         w = np.append(pt1, pt2, axis=0)
-                #         del pt1, pt2
+                    label = ''.join(e for e in label[2] if e.isalnum())
+                    export = [label, w, fw]
 
-                #     fw = filter_waterfall(w, 1000, 100, -1)
+                    with open(f"{save}/{label}-{event_number}-{filenames[file_number]}", "wb") as fp:  # Pickling
+                        pickle.dump(export, fp)
 
-                #     # if label == 'c' and soil:
-                #     #     soil = False
-                #     #
-                #     #     bounds = 1000
-                #     #     fig, ax = plt.subplots()
-                #     #     img1 = ax.imshow(w, interpolation='none', vmin=-bounds, vmax=bounds)
-                #     #     img1.set_cmap(plt.colormaps['bwr'])
-                #     #     plt.show()
-                #     #     plt.close()
-                #     #
-                #     #     bounds = 1000
-                #     #     fig, ax = plt.subplots()
-                #     #     img1 = ax.imshow(fw, interpolation='none', vmin=-bounds, vmax=bounds)
-                #     #     img1.set_cmap(plt.colormaps['bwr'])
-                #     #     plt.show()
-                #     #     plt.close()
-                #     #
-                #     #     print("soil")
-                #     #
-                #     # elif label == 'p' and nano:
-                #     #     nano = False
-                #     #
-                #     #     bounds = 1000
-                #     #     fig, ax = plt.subplots()
-                #     #     img1 = ax.imshow(w, interpolation='none', vmin=-bounds, vmax=bounds)
-                #     #     img1.set_cmap(plt.colormaps['bwr'])
-                #     #     plt.show()
-                #     #     plt.close()
-                #     #
-                #     #     bounds = 1000
-                #     #     fig, ax = plt.subplots()
-                #     #     img1 = ax.imshow(fw, interpolation='none', vmin=-bounds, vmax=bounds)
-                #     #     img1.set_cmap(plt.colormaps['bwr'])
-                #     #     plt.show()
-                #     #     plt.close()
-                #     #
-                #     #     print("nano")
-                #     #
-                #     # elif label == 'f' and foot:
-                #     #     foot = False
-                #     #
-                #     #     bounds = 1000
-                #     #     fig, ax = plt.subplots()
-                #     #     img1 = ax.imshow(w, interpolation='none', vmin=-bounds, vmax=bounds)
-                #     #     img1.set_cmap(plt.colormaps['bwr'])
-                #     #     plt.show()
-                #     #     plt.close()
-                #     #
-                #     #     bounds = 1000
-                #     #     fig, ax = plt.subplots()
-                #     #     img1 = ax.imshow(fw, interpolation='none', vmin=-bounds, vmax=bounds)
-                #     #     img1.set_cmap(plt.colormaps['bwr'])
-                #     #     plt.show()
-                #     #     plt.close()
-                #     #
-                #     #     print("foot")
-                #     #
-                #     # elif label == 'e' and fade:
-                #     #     fade = False
-                #     #
-                #     #     bounds = 1000
-                #     #     fig, ax = plt.subplots()
-                #     #     img1 = ax.imshow(w, interpolation='none', vmin=-bounds, vmax=bounds)
-                #     #     img1.set_cmap(plt.colormaps['bwr'])
-                #     #     plt.show()
-                #     #     plt.close()
-                #     #
-                #     #     bounds = 1000
-                #     #     fig, ax = plt.subplots()
-                #     #     img1 = ax.imshow(fw, interpolation='none', vmin=-bounds, vmax=bounds)
-                #     #     img1.set_cmap(plt.colormaps['bwr'])
-                #     #     plt.show()
-                #     #     plt.close()
-                #     #
-                #     #     print("fade")
-                #     #
-                #     # elif label == 'n' and noise:
-                #     #     noise = False
-                #     #
-                #     #     bounds = 1000
-                #     #     fig, ax = plt.subplots()
-                #     #     img1 = ax.imshow(w, interpolation='none', vmin=-bounds, vmax=bounds)
-                #     #     img1.set_cmap(plt.colormaps['bwr'])
-                #     #     plt.show()
-                #     #     plt.close()
-                #     #
-                #     #     bounds = 1000
-                #     #     fig, ax = plt.subplots()
-                #     #     img1 = ax.imshow(fw, interpolation='none', vmin=-bounds, vmax=bounds)
-                #     #     img1.set_cmap(plt.colormaps['bwr'])
-                #     #     plt.show()
-                #     #     plt.close()
-                #     #
-                #     #     print("noise")
-
-
-                #     export = [label, w, fw]
-
-                #     with open(f"{save}/{label}-{event_number}-{filenames[file_number]}", "wb") as fp:  # Pickling
-                #         pickle.dump(export, fp)
             pbar.update(1)
+
+def new_labelled_cnn_event_windows_30(tdms_folder, labels_folder, clusters_folder, save, window_width, window_height):
+    tdms_array = load_folder(tdms_folder)
+    tdms_array = sort_array(tdms_array)
+    filenames = sorted([filename for filename in os.listdir(tdms_folder)])
+
+    label_array = sorted(os.listdir(labels_folder))
+
+    clusters_array = sorted(os.listdir(clusters_folder))
+
+    prior_cInfo = None
+    with tqdm(total=len(tdms_array)) as pbar:
+        for file_number, tdms in enumerate(tdms_array):
+
+            future_prior = []
+            combined = []
+
+            if file_number == 0:
+
+                for j in range(5):
+                    with open(f"{clusters_folder}{clusters_array[file_number+j]}", "rb") as fp:  # Unpickling
+                        cInfo = pickle.load(fp)
+
+                    if j == 0:
+                        for c in cInfo:
+                            combined.append([c[0], c[1], c[2], c[3], c[4]])
+                    elif j == 4:
+                        combined.extend(x for x in cInfo if x not in combined)
+                        for c in cInfo:
+                            future_prior.append([c[0] - 20000, c[1] - 20000, c[2], c[3], c[4]])
+                    else:
+                        combined.extend(x for x in cInfo if x not in combined)
+
+                cluster_data = combined
+                del combined
+
+                temp = []
+                for c in cluster_data:
+                    if 20 <= c[3] - c[2] < 100 and c[1] != c[0] > 0:
+                        temp.append(c)
+
+                cluster_data = temp
+                del temp
+
+                with open(f"{labels_folder}/{label_array[file_number]}", "rb") as fp:   # Unpickling
+                    label_data = pickle.load(fp)
+
+                cluster_data = cluster_association(cluster_data, 0.25, 40, 1000, -1, 100, -1, 1000)
+
+                filtered_cluster_data = []
+                for cluster in cluster_data:
+                    #time, channel, point count
+
+                    #offset needed when looking at files beyond the first as an extra 20 ms is added to the start when processing to allow for the full file to be processed
+                    sample_midp = cluster[0] + int((cluster[1] - cluster[0])/2)
+
+                    if not (sample_midp - 60 < 0 or sample_midp + 60 > 30000):
+                        filtered_cluster_data.append(cluster)
+
+                for event_number, (cluster, label) in enumerate(zip(filtered_cluster_data, label_data)):
+                    #time, channel, point count
+
+                    sample_midp = cluster[0] + int((cluster[1] - cluster[0])/2)
+                    channel_midp = cluster[2] + int((cluster[3] - cluster[2])/2)
+
+                    #TDMS chan chan samp samp
+                    w = get_data(tdms, (channel_midp - int(window_width/2)), (channel_midp + int(window_width/2)), (sample_midp - int(window_height/2)), (sample_midp + int(window_height/2)))
+                    fw = filter_waterfall(w, 1000, 100, -1)
+
+                    # fig1 = plt.figure()
+                    # img1 = plt.imshow(w, cmap='bwr', vmin=-1000, vmax=1000)
+                    # plt.title(f'{label[2]}')
+                    # fig1.show()
+                    #
+                    # fig1 = plt.figure()
+                    # img1 = plt.imshow(fw, cmap='bwr', vmin=-1000, vmax=1000)
+                    # plt.title(f'{label[2]}')
+                    # fig1.show()
+
+                    label = ''.join(e for e in label[2] if e.isalnum())
+                    export = [label, w, fw]
+
+                    with open(f"{save}/{label}-{event_number}-{filenames[file_number]}", "wb") as fp:  # Pickling
+                        pickle.dump(export, fp)
+
+            else:
+
+                clust_num = ((file_number + 1) * 6) - 1
+
+                combined = []
+                for j in range(1, 6):
+                    with open(f"{clusters_folder}{clusters_array[clust_num - j]}", "rb") as fp:  # Unpickling
+                        cluster_data = pickle.load(fp)
+
+                    if j == 0:
+                        for c in cluster_data:
+                            combined.append([c[0] + 10000, c[1] + 10000, c[2], c[3], c[4]])
+                    if j == 1:
+                        for c in cluster_data:
+                            combined.extend([c[0] + 10000, c[1] + 10000, c[2], c[3], c[4]] for c in cluster_data if [c[0] + 10000, c[1] + 10000, c[2], c[3], c[4]] not in combined)
+                            future_prior.append([c[0] - 20000, c[1] - 20000, c[2], c[3], c[4]])
+                    else:
+                        combined.extend([c[0] + 10000, c[1] + 10000, c[2], c[3], c[4]] for c in cluster_data if [c[0] + 10000, c[1] + 10000, c[2], c[3], c[4]] not in combined)
+
+                with open(f"{clusters_folder}{clusters_array[clust_num - 6]}", "rb") as fp:  # Unpickling
+                    cluster_data = pickle.load(fp)
+
+                combined.extend([c[0] - 20000, c[1] - 20000, c[2], c[3], c[4]] for c in cluster_data if [c[0] - 20000, c[1] - 20000, c[2], c[3], c[4]] not in combined)
+                combined = (x for x in combined if x not in prior_cInfo)
+
+                temp = []
+                for c in combined:
+                    if 20 <= c[3] - c[2] < 100 and c[1] != c[0] > 0:
+                        temp.append(c)
+
+                cluster_data = temp
+                del temp
+
+                with open(f"{labels_folder}/{label_array[file_number]}", "rb") as fp:   # Unpickling
+                    label_data = pickle.load(fp)
+
+                cluster_data = cluster_association(cluster_data, 0.25, 40, 1000, -1, 100, -1, 1000)
+
+                filtered_cluster_data = []
+                for cluster in cluster_data:
+                    #time, channel, point count
+
+                    #offset needed when looking at files beyond the first as an extra 20 ms is added to the start when processing to allow for the full file to be processed
+                    sample_midp = cluster[0] + int((cluster[1] - cluster[0])/2) - 20
+
+                    if not (sample_midp - 60 < 0 or sample_midp + 60 > 40000):
+                        filtered_cluster_data.append(cluster)
+
+                for event_number, (cluster, label) in enumerate(zip(filtered_cluster_data, label_data)):
+                    #time, channel, point count
+
+                    sample_midp = cluster[0] + int((cluster[1] - cluster[0])/2) - 20
+                    channel_midp = cluster[2] + int((cluster[3] - cluster[2])/2)
+
+
+                    if (sample_midp - int(window_height/2)) > 9999:
+                        #second file
+                        w = get_data(tdms_array[file_number], (channel_midp - int(window_width/2)), (channel_midp + int(window_width/2)), (sample_midp - int(window_height/2)) - 10000, (sample_midp + int(window_height/2)) - 10000)
+
+                    elif (sample_midp + int(window_height/2)) < 10000:
+                        #first file
+                        w = get_data(tdms_array[file_number - 1], (channel_midp - int(window_width/2)), (channel_midp + int(window_width/2)), (sample_midp - int(window_height/2)), (sample_midp + int(window_height/2)))
+
+                    else:
+                        #in the overlap
+                        pt1 = get_data(tdms_array[file_number-1], (channel_midp - int(window_width/2)), (channel_midp + int(window_width/2)), first_sample = (sample_midp - int(window_height/2)))
+
+                        pt2 = get_data(tdms_array[file_number], (channel_midp - int(window_width/2)), (channel_midp + int(window_width/2)), last_sample = (sample_midp + int(window_height/2))-10000)
+
+                        w = np.append(pt1, pt2, axis=0)
+                        del pt1, pt2
+
+                    fw = filter_waterfall(w, 1000, 100, -1)
+
+                    # fig1 = plt.figure()
+                    # img1 = plt.imshow(w, cmap='bwr', vmin=-1000, vmax=1000)
+                    # plt.title(f'{label[2]}')
+                    # fig1.show()
+                    #
+                    # fig1 = plt.figure()
+                    # img1 = plt.imshow(fw, cmap='bwr', vmin=-1000, vmax=1000)
+                    # plt.title(f'{label[2]}')
+                    # fig1.show()
+
+                    label = ''.join(e for e in label[2] if e.isalnum())
+                    export = [label, w, fw]
+
+                    with open(f"{save}/{label}-{event_number}-{filenames[file_number]}", "wb") as fp:  # Pickling
+                        pickle.dump(export, fp)
+
+
+            prior_cInfo = future_prior
+            pbar.update(1)
+
+
 
 if __name__ == '__main__':
 
-    device = "E"
-    window = "NovemberDayNew"
+    device = "G"
+    window = "JanuaryDayNew"
     save = F"{device}:\\CNN Formatted Data - 80 x 120\\{window}"
 
     # tdms_folder = f"{device}:/1000Hz Data/{window}/"
@@ -1126,6 +1137,7 @@ if __name__ == '__main__':
     #     labelled_cnn_event_windows_10(tdms_folder, labels_folder, clusters_folder, save, 80, 120)
 
     new_labelled_cnn_event_windows_10(tdms_folder, labels_folder, clusters_folder, save, 80, 120)
+    # new_labelled_cnn_event_windows_30(tdms_folder, labels_folder, clusters_folder, save, 80, 120)
 
     # tdms_directory = "G:/1000Hz Data/NDay/"
     # cluster_directory = "G:/New Data/NovemberSanity/Clusters/"
