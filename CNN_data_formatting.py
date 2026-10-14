@@ -935,6 +935,55 @@ def new_labelled_cnn_event_windows_10(tdms_folder, labels_folder, clusters_folde
 
             pbar.update(1)
 
+def GENERATED_NOISE_event_windows_10(tdms_folder, labels_folder, clusters_folder, save, window_width, window_height):
+
+    tdms_array = load_folder(tdms_folder)
+    tdms_array = sort_array(tdms_array)
+    filenames = sorted([filename for filename in os.listdir(tdms_folder)])
+
+    label_array = sorted(os.listdir(labels_folder))
+
+    clusters_array = sorted(os.listdir(clusters_folder))
+
+    with tqdm(total=len(tdms_array)) as pbar:
+        for file_number, tdms in enumerate(tdms_array):
+
+            #tdms_data = getData(tdms)
+
+            with open(f"{clusters_folder}/{clusters_array[file_number]}", "rb") as fp:   # Unpickling
+                cluster_data = pickle.load(fp)
+
+            with open(f"{labels_folder}/{label_array[file_number]}", "rb") as fp:   # Unpickling
+                label_data = pickle.load(fp)
+
+            for event_number, (cluster, label) in enumerate(zip(cluster_data, label_data)):
+                #time, channel, point count
+
+                sample_midp = cluster[0] + int((cluster[1] - cluster[0])/2)
+                channel_midp = cluster[2] + int((cluster[3] - cluster[2])/2)
+
+                #TDMS chan chan samp samp
+                w = get_data(tdms, (channel_midp - int(window_width/2)), (channel_midp + int(window_width/2)), (sample_midp - int(window_height/2)), (sample_midp + int(window_height/2)))
+                fw = filter_waterfall(w, 1000, 100, -1)
+
+                # fig1 = plt.figure()
+                # img1 = plt.imshow(w, cmap='bwr', vmin=-1000, vmax=1000)
+                # plt.title(f'{label[2]}')
+                # fig1.show()
+                #
+                # fig1 = plt.figure()
+                # img1 = plt.imshow(fw, cmap='bwr', vmin=-1000, vmax=1000)
+                # plt.title(f'{label[2]}')
+                # fig1.show()
+
+                label = ''.join(e for e in label[2] if e.isalnum())
+                export = [label, w, fw]
+
+                with open(f"{save}/{label}-{event_number}-{filenames[file_number]}", "wb") as fp:  # Pickling
+                    pickle.dump(export, fp)
+
+            pbar.update(1)
+
 def new_labelled_cnn_event_windows_30(tdms_folder, labels_folder, clusters_folder, save, window_width, window_height):
     tdms_array = load_folder(tdms_folder)
     tdms_array = sort_array(tdms_array)
@@ -1118,26 +1167,36 @@ def new_labelled_cnn_event_windows_30(tdms_folder, labels_folder, clusters_folde
 if __name__ == '__main__':
 
     device = "G"
-    window = "JanuaryDayNew"
-    save = F"{device}:\\CNN Formatted Data - 80 x 120\\{window}"
+    window = "NNDay"
+    # save = F"{device}:\\CNN Formatted Data - 80 x 120\\{window}"
+    save = F"{device}:\\CNN Formatted Data - 80 x 120\\Noise"
 
+    # original
     # tdms_folder = f"{device}:/1000Hz Data/{window}/"
     # labels_folder = f"{device}:/Labeled Clusters and Features/{window}/"
     # clusters_folder = f"{device}:/Clusters/{window}/"
 
-    # tdms_folder = f"{device}:/NewData/{window}/NightNew/"
-    tdms_folder = f"{device}:/New Data/{window}/DayNew/"
+    # assisted
+    # tdms_folder = f"{device}:/New Data/{window}/DayNew/"
+    # labels_folder = f"{device}:/New Data/{window}/Assisted Labelled Data/"
+    # clusters_folder = f"{device}:/New Data/{window}/Clusters/"
 
-    labels_folder = f"{device}:/New Data/{window}/Assisted Labelled Data/"
-    clusters_folder = f"{device}:/New Data/{window}/Clusters/"
+    # noise
+    # tdms_folder = f"{device}:/1000Hz Data/{window}/"
+    tdms_folder = "G:/New Data/NovemberDayNew/DayNew/"
+
+    labels_folder = f"{device}:/Labeled Clusters and Features/Noise/{window}/"
+    clusters_folder = f"{device}:/Clusters/Noise/{window}/"
 
     # if window == "FDay" or window == "FNight":
     #     labelled_cnn_event_windows_30(tdms_folder, labels_folder, clusters_folder, save, 80, 120)
     # else:
     #     labelled_cnn_event_windows_10(tdms_folder, labels_folder, clusters_folder, save, 80, 120)
 
-    new_labelled_cnn_event_windows_10(tdms_folder, labels_folder, clusters_folder, save, 80, 120)
+    # new_labelled_cnn_event_windows_10(tdms_folder, labels_folder, clusters_folder, save, 80, 120)
     # new_labelled_cnn_event_windows_30(tdms_folder, labels_folder, clusters_folder, save, 80, 120)
+
+    GENERATED_NOISE_event_windows_10(tdms_folder, labels_folder, clusters_folder, save, 80, 120)
 
     # tdms_directory = "G:/1000Hz Data/NDay/"
     # cluster_directory = "G:/New Data/NovemberSanity/Clusters/"
